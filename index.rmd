@@ -1,0 +1,147 @@
+---
+title: "Using Keras to detect activity"
+author: "Nick Strayer"
+date: "7/1/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Libraries
+
+```{r}
+library(keras)
+library(tidyverse)
+library(knitr)
+```
+
+## The data
+
+The data come from the [Smartphone-Based Recognition of Human Activities and Postural Transitions Data Set ](http://archive.ics.uci.edu/ml/datasets/Smartphone-Based+Recognition+of+Human+Activities+and+Postural+Transitions) distributed by the University of California, Irvine. 
+
+The main datasource when downloaded from the link above contains two different 'parts' of the data. One that has been pre-processed using various feature extraction techniques such as fast fourier transform, and another `RawData` section that simply supplies the raw X,Y,Z directions of an accelerometer and gyroscope. This is the dataset we will use. 
+
+__The labels__
+
+The data has integer encodings for the activities which, while not important to the model itself, are helpful for use to see. Let's load them first. 
+
+```{r}
+activityLabels <- read.table('data/activity_labels.txt') %>% 
+  rename(number = V1, label = V2)
+
+activityLabels %>% kable()
+```
+
+Next we will load in the labels key for the `RawData`. The key for the columns is taken from the data `README.txt`. 
+
+```
+Column 1: experiment number ID, 
+Column 2: user number ID, 
+Column 3: activity number ID 
+Column 4: Label start point (in number of signal log samples (recorded at 50Hz))
+Column 5: Label end point (in number of signal log samples)
+```
+
+```{r}
+labels <- read.table('data/RawData/labels.txt') %>% 
+  rename(
+    experiment = V1,
+    userId = V2,
+    activity = V3,
+    startPos = V4,
+    endPos = V5
+  )
+
+labels %>% 
+  head() %>% 
+  kable()
+```
+
+Next, let's look at the actual files of the user data provided to us in `RawData/`
+
+```{r}
+dataFiles <- list.files('data/RawData')
+
+dataFiles %>% head()
+```
+
+So we have a three-part file naming scheme. The first is the type of data the file contains: either `acc` for accelerometer or `gyro` for gyroscope. Next is the experiment number, and last is the user Id for the recording. Let's load these into a dataframe for ease of use later. 
+
+```{r}
+fileInfo <- data_frame(
+  filePath = dataFiles
+) %>%
+  filter(filePath != 'labels.txt') %>% 
+  separate(filePath, sep = '_', into = c('type', 'experiment', 'userId'), remove = FALSE) %>% 
+  mutate(
+    experiment = str_remove(experiment, 'exp'),
+    userId = str_remove_all(userId, 'user|\\.txt')
+  ) %>% 
+  spread(type, filePath)
+
+fileInfo %>% head()
+```
+
+```{r}
+readInData <- function(accelPath, gyroPath){
+  genFilePath = function(path){
+    return(paste0('data/RawData/', path))
+  }  
+  
+  bind_cols(
+    read.table(genFilePath(accelPath), col.names = c('a_x', 'a_y', 'a_z')),
+    read.table(genFilePath(gyroPath), col.names = c('g_x', 'g_y', 'g_z'))
+  )
+}
+
+readInData <- function(experiment, userId){
+  genFilePath = function(type){
+    return(paste0('data/RawData/', type, '_exp',experiment, '_user', userId, '.txt'))
+  }  
+  
+  bind_cols(
+    read.table(genFilePath('acc'), col.names = c('a_x', 'a_y', 'a_z')),
+    read.table(genFilePath('gyro'), col.names = c('g_x', 'g_y', 'g_z'))
+  )
+}
+
+allData <- readInData('01', '01')
+
+
+fileInfo %>% 
+  head() %>% 
+  mutate(
+    sensorData = map2(acc, gyro, readInData)
+  )
+
+allData <- map2(fileInfo$acc, fileInfo$gyro, readInData)
+
+
+
+```
+
+
+Now we have all the book keeping out of the way, let's dig in and actually extract an observation (single recording of an activity with a label) to setup a pipeline to do so for all the data. 
+
+Let's start with user 1 and experiment 1
+```{r}
+labels %>% filter(userId == 1, experiment == 1) %>% kable()
+```
+So user 1 has 22 different activities recorded for experiment 1. Let's try extracting the first. 
+
+```{r}
+fileLoc <- fileInfo %>% 
+  filter(userId == 1, experiment == 1) %>% 
+  select(filePath)
+```
+
+
+## Load in train set
+
+```{r}
+train <- read_csv('data/train.csv', col_names = FALSE)
+```
+
