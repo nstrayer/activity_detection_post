@@ -82,21 +82,11 @@ fileInfo <- data_frame(
   ) %>% 
   spread(type, filePath)
 
-fileInfo %>% head()
+fileInfo %>% head() %>% kable()
 ```
 
 ```{r}
-readInData <- function(accelPath, gyroPath){
-  genFilePath = function(path){
-    return(paste0('data/RawData/', path))
-  }  
-  
-  bind_cols(
-    read.table(genFilePath(accelPath), col.names = c('a_x', 'a_y', 'a_z')),
-    read.table(genFilePath(gyroPath), col.names = c('g_x', 'g_y', 'g_z'))
-  )
-}
-
+# Read contents of single file to a dataframe with accelerometer and gyro data.
 readInData <- function(experiment, userId){
   genFilePath = function(type){
     return(paste0('data/RawData/', type, '_exp',experiment, '_user', userId, '.txt'))
@@ -108,40 +98,41 @@ readInData <- function(experiment, userId){
   )
 }
 
-allData <- readInData('01', '01')
+# Function to read a given file and get the observations contained along with their classes.
+loadFileData <- function(curExperiment, curUserId){
+  # load sensor data from file into dataframe
+  allData <- readInData(curExperiment, curUserId)
 
+  extractObservation <- function(startPos, endPos){
+    allData[startPos:endPos,]
+  }
+  
+  # get observation locations in this file from labels dataframe
+  dataLabels <- labels %>% 
+    filter(userId == as.integer(curUserId), experiment == as.integer(curExperiment))
+  
 
-fileInfo %>% 
-  head() %>% 
-  mutate(
-    sensorData = map2(acc, gyro, readInData)
-  )
+  # extract observations as dataframes and save as a column in dataframe.
+  dataLabels %>% 
+    mutate(
+      data = map2(startPos, endPos, extractObservation)
+    ) %>% 
+    select(-startPos, -endPos)
+}
 
-allData <- map2(fileInfo$acc, fileInfo$gyro, readInData)
+allObservations <- map2_df(fileInfo$experiment, fileInfo$userId, loadFileData)
 
-
-
+allObservations %>% head()
 ```
 
+So now that we have all the data loaded and our labels as either `experiment`, `userId`, or `activity` we can explore the dataset. 
 
-Now we have all the book keeping out of the way, let's dig in and actually extract an observation (single recording of an activity with a label) to setup a pipeline to do so for all the data. 
+Before we do so, however, we need to set aside a testing set of observations that we won't look at until after we have trained our model in an attempt to get the least-biased view of our performance. 
 
-Let's start with user 1 and experiment 1
-```{r}
-labels %>% filter(userId == 1, experiment == 1) %>% kable()
-```
-So user 1 has 22 different activities recorded for experiment 1. Let's try extracting the first. 
+We will leave out 20% of the data for this purpose, making sure that no user is in both the train and testing data (in an effort see how generalizable our model is to new users.)
 
-```{r}
-fileLoc <- fileInfo %>% 
-  filter(userId == 1, experiment == 1) %>% 
-  select(filePath)
-```
+### Train Test Split
 
 
-## Load in train set
 
-```{r}
-train <- read_csv('data/train.csv', col_names = FALSE)
-```
 
