@@ -9,6 +9,11 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+__Goal__
+
+Using accelerometer data recorded from a smart phone, use a 1-D convolutional neural network to predict the various physical activities being performed accross multiple individuals. 
+
+__Data__
 
 ## Libraries
 
@@ -85,7 +90,7 @@ fileInfo <- data_frame(
 fileInfo %>% head() %>% kable()
 ```
 
-```{r}
+```{r, eval = FALSE}
 # Read contents of single file to a dataframe with accelerometer and gyro data.
 readInData <- function(experiment, userId){
   genFilePath = function(type){
@@ -122,7 +127,13 @@ loadFileData <- function(curExperiment, curUserId){
 
 allObservations <- map2_df(fileInfo$experiment, fileInfo$userId, loadFileData)
 
-allObservations %>% head()
+# write_rds(allObservations, 'allObservations.rds')
+allObservations %>% dim()
+```
+
+```{r, echo = FALSE}
+allObservations <- read_rds('allObservations.rds')
+allObservations %>% dim()
 ```
 
 So now that we have all the data loaded and our labels as either `experiment`, `userId`, or `activity` we can explore the dataset. 
@@ -133,6 +144,18 @@ We will leave out 20% of the data for this purpose, making sure that no user is 
 
 ### Train Test Split
 
+### Visualizing the different activities
 
+### Padding observations
+
+### Model architecture
+
+### Training
+
+### Testing
+
+### Investigating Misclassifications
+
+### Future Directions
 
 
