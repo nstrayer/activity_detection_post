@@ -145,7 +145,8 @@ Before we do so, however, we need to set aside a testing set of observations tha
 
 We will leave out 20% of the data for this purpose, making sure that no user is in both the train and testing data (in an effort see how generalizable our model is to new users.)
 
-### Train Test Split
+
+
 
 ### Visualizing the different activities
 
@@ -174,14 +175,36 @@ desiredActivities <- c(
   "LIE_TO_SIT", "STAND_TO_LIE", "LIE_TO_STAND"  
 )
 
-filtered_observations <- allObservations %>% 
+filteredObservations <- allObservations %>% 
   filter(activityName %in% desiredActivities) %>% 
   mutate(observationId = 1:n())
 
-nrow(filtered_observations)
+nrow(filteredObservations)
 ```
 
 So after our aggressive pruning of the data we will have a respectable amount of data left upon which our model can learn. 
+
+### Train Test Split
+
+Before we go any futher into exploring the data for our model, in an attempt to be as fair as possible with our performance measures we need to split the data into a train and test set. Since each user performed all activities just once (with the exception of one who only did 10 of the 12) by splitting on `userId` we will ensure that our model sees new people exclusively when it trains. 
+
+```{r}
+# get all users
+userIds <- allObservations$userId %>% unique()
+
+# randomly choose 24 (80% of 30) for training
+trainIds <- sample(userIds, size = 24)
+
+# set the rest of the users to the testing set
+testIds <- setdiff(userIds,trainIds)
+
+# filter data. 
+trainData <- filteredObservations %>% 
+  filter(userId %in% trainIds)
+
+testData <- filteredObservations %>% 
+  filter(userId %in% testIds)
+```
 
 __Visualizing each class__
 
@@ -190,9 +213,9 @@ Now that we have cut our data down, we can actually visualize the data for each 
 First let's unpack our data from its dataframe of one-row-per-observation to a tidy version of all the observations. 
 
 ```{r}
-unpacked_obs <- 1:nrow(filtered_observations) %>% 
+unpackedObs <- 1:nrow(trainData) %>% 
   map_df(function(rowNum){
-    dataRow <- filtered_observations[rowNum, ]
+    dataRow <- trainData[rowNum, ]
     dataRow$data[[1]] %>% 
       mutate(
         activityName = dataRow$activityName, 
@@ -207,15 +230,19 @@ unpacked_obs <- 1:nrow(filtered_observations) %>%
 Now we have an unpacked set of our observations, let's visualize them!
 
 ```{r}
-unpacked_obs %>% 
+unpackedObs %>% 
   ggplot(aes(x = time, y = value, color = direction)) +
   geom_line(alpha = 0.2) +
+  geom_smooth(se = FALSE, alpha = 0.7) +
   facet_grid(type ~ activityName, scales = 'free_y') +
   theme_minimal() +
   theme(
     axis.text.x = element_blank()
   )
 ```
+
+So at least in the accelerometer data patterns definitely emerge. One would imagine that the model may have trouble with the differences between `LIE_TO_SIT` and `LIE_TO_STAND` as they have a similar profile on average. The same goes for `SIT_TO_STAND` and `STAND_TO_SIT`. 
+
 
 ### Padding observations
 
