@@ -9,9 +9,23 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-__Goal__
+---
+title: "Using Keras to detect activity"
+description: |
+  Using accelerometer data recorded from a smart phone, use a 1-D convolutional neural network to predict the various physical activities being performed accross multiple individuals. 
+author:
+  - name: Nick Strayer 
+    url: http://nickstrayer.me
+    affiliation: Vanderbilt University
+    affiliation_url: https://www.vanderbilt.edu/biostatistics-graduate/
+date: "`r Sys.Date()`"
+output: radix::radix_article
+---
 
-Using accelerometer data recorded from a smart phone, use a 1-D convolutional neural network to predict the various physical activities being performed accross multiple individuals. 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
 
 __Data__
 
@@ -152,8 +166,8 @@ We will leave out 20% of the data for this purpose, making sure that no user is 
 
 Let's first look at the length of the recordings by activity. 
 
-```{r}
-observationLengths <- allObservations %>% 
+```{r, fig.height=12, fig.width=6}
+allObservations %>% 
   mutate(recording_length = map_int(data,nrow)) %>% 
   ggplot(aes(x = recording_length, y = activityName)) +
   geom_density_ridges()
@@ -168,7 +182,10 @@ An interesting future direction would be attempting to use another architecture 
 
 __Filter activities__
 
+
 Based on our work from above, let's subset the data to just be of the activities of interest. 
+
+
 ```{r}
 desiredActivities <- c(
   "STAND_TO_SIT", "SIT_TO_STAND", "SIT_TO_LIE", 
@@ -184,7 +201,7 @@ nrow(filteredObservations)
 
 So after our aggressive pruning of the data we will have a respectable amount of data left upon which our model can learn. 
 
-### Train Test Split
+### Train-Test Split
 
 Before we go any futher into exploring the data for our model, in an attempt to be as fair as possible with our performance measures we need to split the data into a train and test set. Since each user performed all activities just once (with the exception of one who only did 10 of the 12) by splitting on `userId` we will ensure that our model sees new people exclusively when it trains. 
 
@@ -229,7 +246,7 @@ unpackedObs <- 1:nrow(trainData) %>%
 
 Now we have an unpacked set of our observations, let's visualize them!
 
-```{r}
+```{r,layout="l-screen", fig.width=12, fig.height=4}
 unpackedObs %>% 
   ggplot(aes(x = time, y = value, color = direction)) +
   geom_line(alpha = 0.2) +
@@ -282,5 +299,9 @@ Wonderful, we now have our data in a nice neural-network-friendly format of a 3D
 ### Investigating Misclassifications
 
 ### Future Directions
+
+
+
+
 
 
