@@ -233,7 +233,7 @@ Now we have an unpacked set of our observations, let's visualize them!
 unpackedObs %>% 
   ggplot(aes(x = time, y = value, color = direction)) +
   geom_line(alpha = 0.2) +
-  geom_smooth(se = FALSE, alpha = 0.7) +
+  geom_smooth(se = FALSE, alpha = 0.7, size = 0.5) +
   facet_grid(type ~ activityName, scales = 'free_y') +
   theme_minimal() +
   theme(
