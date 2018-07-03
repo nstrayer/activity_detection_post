@@ -21,6 +21,7 @@ __Data__
 library(keras)
 library(tidyverse)
 library(knitr)
+library(ggridges) 
 ```
 
 ## The data
@@ -125,7 +126,9 @@ loadFileData <- function(curExperiment, curUserId){
     select(-startPos, -endPos)
 }
 
-allObservations <- map2_df(fileInfo$experiment, fileInfo$userId, loadFileData)
+allObservations <- map2_df(fileInfo$experiment, fileInfo$userId, loadFileData) %>% 
+  right_join(activityLabels, by = c('activity' = 'number')) %>% 
+  rename(activityName = label)
 
 # write_rds(allObservations, 'allObservations.rds')
 allObservations %>% dim()
@@ -145,6 +148,74 @@ We will leave out 20% of the data for this purpose, making sure that no user is 
 ### Train Test Split
 
 ### Visualizing the different activities
+
+Let's first look at the length of the recordings by activity. 
+
+```{r}
+allObservations %>% 
+  mutate(recording_length = map_int(data,nrow)) %>% 
+  ggplot(aes(x = recording_length, y = activityName)) +
+  geom_density_ridges()
+```
+
+From this plot we can see that there appear to be three general activity length groups. THe first and largest group being of recording lengths between 0 and 500 time-points, the second and smallest, being the two stair walking activities with lengths between 500 and 750, and lastly the much wider distributed classes with an average a little over 1,000. 
+
+This fact requires us to be a bit careful with how we proceed. If we train the model on every class at once we are going to have to pad all the observations to the length of the longest, which would leave a large majority of the observations with a huge proportion of their data being just padding-zeros. Because of this, we will fit our model to just the largest group of observations, these include `STAND_TO_SIT`, `STAND_TO_LIE`, `SIT_TO_STAND`, `SIT_TO_LIE`, `LIE_TO_STAND`, and `LIE_TO_SIT`. 
+
+An interesting future direction would be attempting to use another architecture such as an RNN that can handle variable length inputs and training it on all the data. However, you would run the risk of the model learning simply that if the observation is long it is most likely one of the four longest classes which would not generalize to a scenario where you were running this model on a real-time-stream of data. 
+
+
+__Filter activities__
+
+Based on our work from above, let's subset the data to just be of the activities of interest. 
+```{r}
+desiredActivities <- c(
+  "STAND_TO_SIT", "SIT_TO_STAND", "SIT_TO_LIE", 
+  "LIE_TO_SIT", "STAND_TO_LIE", "LIE_TO_STAND"  
+)
+
+filtered_observations <- allObservations %>% 
+  filter(activityName %in% desiredActivities) %>% 
+  mutate(observationId = 1:n())
+
+nrow(filtered_observations)
+```
+
+So after our aggressive pruning of the data we will have a respectable amount of data left upon which our model can learn. 
+
+__Visualizing each class__
+
+Now that we have cut our data down, we can actually visualize the data for each class to see if there's any immediately descernable shape that our model may be able to pick up on. 
+
+First let's unpack our data from its dataframe of one-row-per-observation to a tidy version of all the observations. 
+
+```{r}
+unpacked_obs <- 1:nrow(filtered_observations) %>% 
+  map_df(function(rowNum){
+    dataRow <- filtered_observations[rowNum, ]
+    dataRow$data[[1]] %>% 
+      mutate(
+        activityName = dataRow$activityName, 
+        observationId = dataRow$observationId,
+        time = 1:n() )
+  }) %>% 
+  gather(reading, value, -time, -activityName, -observationId) %>% 
+  separate(reading, into = c('type', 'direction'), sep = '_') %>% 
+  mutate(type = ifelse(type == 'a', 'acceleration', 'gyro'))
+```
+
+Now we have an unpacked set of our observations, let's visualize them!
+
+```{r}
+unpacked_obs %>% 
+  ggplot(aes(x = time, y = value, color = direction)) +
+  geom_line(alpha = 0.2) +
+  facet_grid(type ~ activityName, scales = 'free_y') +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_blank()
+  )
+```
 
 ### Padding observations
 
