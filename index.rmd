@@ -1,16 +1,5 @@
 ---
 title: "Using Keras to detect activity"
-author: "Nick Strayer"
-date: "7/1/2018"
-output: html_document
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
----
-title: "Using Keras to detect activity"
 description: |
   Using accelerometer data recorded from a smart phone, use a 1-D convolutional neural network to predict the various physical activities being performed accross multiple individuals. 
 author:
