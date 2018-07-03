@@ -153,7 +153,7 @@ We will leave out 20% of the data for this purpose, making sure that no user is 
 Let's first look at the length of the recordings by activity. 
 
 ```{r}
-allObservations %>% 
+observationLengths <- allObservations %>% 
   mutate(recording_length = map_int(data,nrow)) %>% 
   ggplot(aes(x = recording_length, y = activityName)) +
   geom_density_ridges()
@@ -245,6 +245,33 @@ So at least in the accelerometer data patterns definitely emerge. One would imag
 
 
 ### Padding observations
+
+First we will decide what length to pad (and truncate) our sequences to by finding what the 98th percentile length. This will help us avoid extra-long outlier recordings messing up the padding. 
+
+```{r}
+padSize <- trainData$data %>% 
+  map_int(nrow) %>% 
+  quantile(p = 0.98) %>% 
+  ceiling()
+padSize
+```
+Now we simply need to convert our list of observations to matrices, then use the super handy [`pad_sequences()`](https://keras.rstudio.com/reference/pad_sequences.html) function in Keras to pad all observations and turn them into a 3D tensor for us. 
+
+```{r}
+convertToTensor <- . %>% 
+  map(as.matrix) %>% 
+  pad_sequences(maxlen = padSize)
+
+trainObs <- trainData$data %>% 
+  convertToTensor()
+
+testObs <- testData$data %>% 
+  convertToTensor()
+  
+dim(trainObs)
+```
+
+Wonderful, we now have our data in a nice neural-network-friendly format of a 3D tensor with dimensions `(<num obs>, <sequence length>, <channels>)`. If we were working with a video instead of sensor data, this would be a 4D Tensor. If we were using FMRI data, this could be a 5D tensor!
 
 ### Model architecture
 
