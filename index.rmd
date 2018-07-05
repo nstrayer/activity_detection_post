@@ -288,11 +288,13 @@ testY <- testData$activity %>% oneHotClasses()
 ### Model architecture
 
 ```{r}
-filters <- 32
-kernel_size <- 12
-hidden_dims <- 64
 input_shape <- dim(trainObs)[-1]
 num_classes <- dim(trainY)[2]
+
+filters <- 16
+kernel_size <- 12
+hidden_dims <- 64
+dense_size <- 32
 
 #Initialize model
 model <- keras_model_sequential()
@@ -301,51 +303,61 @@ model %>%
     filters = filters,
     kernel_size = kernel_size, 
     input_shape = input_shape,
-    strides = 2,
+    strides = 1,
     padding = "valid", 
     activation = "relu",
     name = 'convolution'
   ) %>%
-  # layer_batch_normalization() %>% 
+  # layer_batch_normalization() %>%
+  # layer_dropout(0.2) %>% 
   layer_conv_1d(
     filters = filters/2,
-    kernel_size = kernel_size/2, 
+    kernel_size = kernel_size/2,
     strides = 1,
-    padding = "valid", 
+    padding = "valid",
     activation = "relu",
     name = 'convolution_2'
   ) %>%
-  layer_batch_normalization() %>% 
+  layer_batch_normalization() %>%
   # Apply max pooling:
   layer_global_max_pooling_1d(name = 'max_pooling') %>%
   # Project onto a single unit output layer, and squash it with a sigmoid
-  layer_dropout(0.4) %>% 
+  layer_dropout(0.3) %>% 
+  layer_dense(
+    dense_size, 
+    activation = 'sigmoid',
+    name = 'dense'
+  ) %>% 
+  layer_dropout(0.2) %>% 
   layer_dense(
     num_classes, 
     activation = 'softmax',
     name = 'dense_output'
   ) 
-```
-
-
-### Training
-
-```{r}
-model %>% summary()
 
 # Compile model
 model %>% compile(
   loss = "categorical_crossentropy",
-  optimizer = "adam",
+  # optimizer = "adam",
+  optimizer = "rmsprop",
   metrics = "accuracy"
 )
 
 model %>%
   fit(
     x = trainObs, y = trainY,
-    epochs = 200,
+    epochs = 100,
     validation_data = list(testObs, testY)
   )
+```
+
+
+### Training
+
+```{r, eval = FALSE}
+model %>% summary()
+
+
 ```
 
 
