@@ -16,8 +16,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-__Data__
-
 ## Libraries
 
 ```{r}
@@ -38,8 +36,7 @@ __The labels__
 The data has integer encodings for the activities which, while not important to the model itself, are helpful for use to see. Let's load them first. 
 
 ```{r}
-activityLabels <- read.table('data/activity_labels.txt') %>% 
-  rename(number = V1, label = V2)
+activityLabels <- read.table('data/activity_labels.txt', col.names = c('number', 'label')) 
 
 activityLabels %>% kable()
 ```
@@ -55,14 +52,10 @@ Column 5: Label end point (in number of signal log samples)
 ```
 
 ```{r}
-labels <- read.table('data/RawData/labels.txt') %>% 
-  rename(
-    experiment = V1,
-    userId = V2,
-    activity = V3,
-    startPos = V4,
-    endPos = V5
-  )
+labels <- read.table(
+  'data/RawData/labels.txt',
+  col.names = c('experiment', 'userId', 'activity', 'startPos', 'endPos')
+)
 
 labels %>% 
   head() %>% 
@@ -150,12 +143,11 @@ We will leave out 20% of the data for this purpose, making sure that no user is 
 
 
 
-
-### Visualizing the different activities
+### Visualizing activities
 
 Let's first look at the length of the recordings by activity. 
 
-```{r, fig.height=12, fig.width=6}
+```{r, fig.height=6, fig.width=5}
 allObservations %>% 
   mutate(recording_length = map_int(data,nrow)) %>% 
   ggplot(aes(x = recording_length, y = activityName)) +
@@ -279,9 +271,84 @@ dim(trainObs)
 
 Wonderful, we now have our data in a nice neural-network-friendly format of a 3D tensor with dimensions `(<num obs>, <sequence length>, <channels>)`. If we were working with a video instead of sensor data, this would be a 4D Tensor. If we were using FMRI data, this could be a 5D tensor!
 
+__One-Hot (Dummy) encoding the classes__
+
+There's one last thing we need to do before we can train our model, and that is turn our observation classes from integers to a one-hot, or dummy encoded, vectors. Luckily, again Keras has supplied us with a very helpful function to do just this. 
+
+```{r}
+oneHotClasses <- . %>% 
+  {. - 7} %>%        # bring integers down to 0-6 from 7-12
+  to_categorical() # One-hot encode
+
+trainY <- trainData$activity %>% oneHotClasses()
+testY <- testData$activity %>% oneHotClasses()
+```
+
+
 ### Model architecture
 
+```{r}
+filters <- 32
+kernel_size <- 12
+hidden_dims <- 64
+input_shape <- dim(trainObs)[-1]
+num_classes <- dim(trainY)[2]
+
+#Initialize model
+model <- keras_model_sequential()
+model %>% 
+  layer_conv_1d(
+    filters = filters,
+    kernel_size = kernel_size, 
+    input_shape = input_shape,
+    strides = 2,
+    padding = "valid", 
+    activation = "relu",
+    name = 'convolution'
+  ) %>%
+  # layer_batch_normalization() %>% 
+  layer_conv_1d(
+    filters = filters/2,
+    kernel_size = kernel_size/2, 
+    strides = 1,
+    padding = "valid", 
+    activation = "relu",
+    name = 'convolution_2'
+  ) %>%
+  layer_batch_normalization() %>% 
+  # Apply max pooling:
+  layer_global_max_pooling_1d(name = 'max_pooling') %>%
+  # Project onto a single unit output layer, and squash it with a sigmoid
+  layer_dropout(0.4) %>% 
+  layer_dense(
+    num_classes, 
+    activation = 'softmax',
+    name = 'dense_output'
+  ) 
+```
+
+
 ### Training
+
+```{r}
+model %>% summary()
+
+# Compile model
+model %>% compile(
+  loss = "categorical_crossentropy",
+  optimizer = "adam",
+  metrics = "accuracy"
+)
+
+model %>%
+  fit(
+    x = trainObs, y = trainY,
+    epochs = 200,
+    validation_data = list(testObs, testY)
+  )
+```
+
+
 
 ### Testing
 
