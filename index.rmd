@@ -291,9 +291,8 @@ testY <- testData$activity %>% oneHotClasses()
 input_shape <- dim(trainObs)[-1]
 num_classes <- dim(trainY)[2]
 
-filters <- 16
-kernel_size <- 12
-hidden_dims <- 64
+filters <- 18
+kernel_size <- 14
 dense_size <- 32
 
 #Initialize model
@@ -307,13 +306,6 @@ model %>%
     activation = "relu",
     name = 'convolution'
   ) %>%
-  # layer_batch_normalization() %>% 
-  layer_spatial_dropout_1d(0.2) %>% 
-  layer_conv_1d(
-    filters = filters,
-    kernel_size = kernel_size,
-    activation = "relu",
-  ) %>%
   layer_batch_normalization() %>%
   layer_spatial_dropout_1d(0.3) %>% 
   layer_conv_1d(
@@ -324,74 +316,57 @@ model %>%
   # Apply max pooling:
   layer_global_average_pooling_1d() %>% 
   layer_batch_normalization() %>%
-  layer_dropout(0.6) %>% 
+  layer_dropout(0.5) %>% 
+  layer_dense(
+    dense_size,
+    activation = 'relu'
+  ) %>% 
+  layer_batch_normalization() %>%
+  layer_dropout(0.4) %>% 
   layer_dense(
     num_classes, 
     activation = 'softmax',
     name = 'dense_output'
   ) 
 
-# Compile model
-model %>% compile(
-  loss = "categorical_crossentropy",
-  # optimizer = "adam",
-  optimizer = "rmsprop",
-  metrics = "accuracy"
-)
-
-model %>%
-  fit(
-    x = trainObs, y = trainY,
-    epochs = 150,
-    validation_data = list(testObs, testY)
-  )
+summary(model)
+```
+```{r, echo = FALSE}
+# saveRDS(history, 'trainHistory.rds')
+history <- readRDS('trainHistory.rds')
 ```
 
 
 ### Training
 
 ```{r, eval = FALSE}
-model %>% summary()
-
-
-```
-
-```{r}
-#Initialize model
-modelRNN <- keras_model_sequential()
-modelRNN %>% 
-  layer_lstm(
-    input_shape = input_shape,
-    units = 32,
-    activation = 'relu'
-  ) %>%
-  layer_batch_normalization() %>%   
-  layer_dro
-  layer_dropout(0.3) %>%
-  layer_dense(
-    num_classes, 
-    activation = 'softmax',
-    name = 'dense_output'
-  ) 
-
 # Compile model
-modelRNN %>% compile(
+model %>% compile(
   loss = "categorical_crossentropy",
-  # optimizer = "adam",
   optimizer = "rmsprop",
   metrics = "accuracy"
 )
 
-modelRNN %>%
+history <- model %>%
   fit(
     x = trainObs, y = trainY,
-    epochs = 50,
-    validation_data = list(testObs, testY)
+    epochs = 250,
+    validation_data = list(testObs, testY),
+    callbacks = list(
+      callback_model_checkpoint("best_model.h5", save_best_only = TRUE)
+    )
   )
+```
+
+__Plotting Training Results__
+
+```{r}
+plot(history)
 ```
 
 
 ### Testing
+
 
 ### Investigating Misclassifications
 
