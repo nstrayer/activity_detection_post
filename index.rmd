@@ -303,32 +303,28 @@ model %>%
     filters = filters,
     kernel_size = kernel_size, 
     input_shape = input_shape,
-    strides = 1,
     padding = "valid", 
     activation = "relu",
     name = 'convolution'
   ) %>%
-  # layer_batch_normalization() %>%
-  # layer_dropout(0.2) %>% 
+  # layer_batch_normalization() %>% 
+  layer_spatial_dropout_1d(0.2) %>% 
   layer_conv_1d(
-    filters = filters/2,
-    kernel_size = kernel_size/2,
-    strides = 1,
-    padding = "valid",
+    filters = filters,
+    kernel_size = kernel_size,
     activation = "relu",
-    name = 'convolution_2'
   ) %>%
   layer_batch_normalization() %>%
+  layer_spatial_dropout_1d(0.3) %>% 
+  layer_conv_1d(
+    filters = filters,
+    kernel_size = kernel_size,
+    activation = "relu",
+  ) %>%
   # Apply max pooling:
-  layer_global_max_pooling_1d(name = 'max_pooling') %>%
-  # Project onto a single unit output layer, and squash it with a sigmoid
-  layer_dropout(0.3) %>% 
-  layer_dense(
-    dense_size, 
-    activation = 'sigmoid',
-    name = 'dense'
-  ) %>% 
-  layer_dropout(0.2) %>% 
+  layer_global_average_pooling_1d() %>% 
+  layer_batch_normalization() %>%
+  layer_dropout(0.6) %>% 
   layer_dense(
     num_classes, 
     activation = 'softmax',
@@ -346,7 +342,7 @@ model %>% compile(
 model %>%
   fit(
     x = trainObs, y = trainY,
-    epochs = 100,
+    epochs = 150,
     validation_data = list(testObs, testY)
   )
 ```
@@ -360,6 +356,39 @@ model %>% summary()
 
 ```
 
+```{r}
+#Initialize model
+modelRNN <- keras_model_sequential()
+modelRNN %>% 
+  layer_lstm(
+    input_shape = input_shape,
+    units = 32,
+    activation = 'relu'
+  ) %>%
+  layer_batch_normalization() %>%   
+  layer_dro
+  layer_dropout(0.3) %>%
+  layer_dense(
+    num_classes, 
+    activation = 'softmax',
+    name = 'dense_output'
+  ) 
+
+# Compile model
+modelRNN %>% compile(
+  loss = "categorical_crossentropy",
+  # optimizer = "adam",
+  optimizer = "rmsprop",
+  metrics = "accuracy"
+)
+
+modelRNN %>%
+  fit(
+    x = trainObs, y = trainY,
+    epochs = 50,
+    validation_data = list(testObs, testY)
+  )
+```
 
 
 ### Testing
