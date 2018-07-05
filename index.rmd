@@ -401,8 +401,58 @@ historyDf %>%
 
 ### Testing
 
+Now that we have a trained model let's investigate the errors that it made on our testing data. 
+
+```{r}
+# dataframe to get labels onto one-hot encoded prediction columns
+oneHotToLabel <- activityLabels %>% 
+  mutate(number = number - 7) %>% 
+  filter(number >= 0) %>% 
+  mutate(class = paste0('V',number + 1)) %>% 
+  select(-number)
+
+bestModel <- load_model_hdf5('best_model.h5')
+
+tidyPredictionProbs <- bestModel %>% 
+  predict(testObs) %>% 
+  as_data_frame() %>% 
+  mutate(obs = 1:n()) %>% 
+  gather(class, prob, -obs) %>% 
+  right_join(oneHotToLabel, by = 'class')
+
+predictionPerformance <- tidyPredictionProbs %>% 
+  group_by(obs) %>% 
+  summarise(
+    highestProb = max(prob),
+    predicted = label[prob == highestProb]
+  ) %>% 
+  mutate(
+    truth = testData$activityName,
+    correct = truth == predicted
+  ) 
+  
+predictionPerformance$correct %>% mean()
+```
+
+
 
 ### Investigating Misclassifications
+
+```{r, layout = 'l-page', fig.width = 8, fig.height = 5}
+predictionPerformance %>% 
+  group_by(truth, predicted) %>% 
+  summarise(count = n()) %>% 
+  mutate(good = truth == predicted) %>% 
+  ggplot(aes(x = truth,  y = predicted)) +
+  geom_point(aes(size = count, color = good)) +
+  geom_text(aes(label = count), 
+            hjust = 0, vjust = 0, 
+            nudge_x = 0.1, nudge_y = 0.1) + 
+  guides(color = FALSE, size = FALSE) +
+  theme_minimal()
+```
+
+We see that, as the preliminary visualization suggested, the model had the most trouble with distinguishing between `LIE_TO_SIT` and `LIE_TO_STAND`. Interestingly it had more trouble when the truth was `LIE_TO_STAND` than the reverse, although the small sample size of our test set makes it difficult to say if this is a significant difference. 
 
 ### Future Directions
 
