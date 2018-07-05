@@ -126,7 +126,7 @@ allObservations <- map2_df(fileInfo$experiment, fileInfo$userId, loadFileData) %
   right_join(activityLabels, by = c('activity' = 'number')) %>% 
   rename(activityName = label)
 
-# write_rds(allObservations, 'allObservations.rds')
+write_rds(allObservations, 'allObservations.rds')
 allObservations %>% dim()
 ```
 
@@ -191,6 +191,7 @@ Before we go any futher into exploring the data for our model, in an attempt to 
 userIds <- allObservations$userId %>% unique()
 
 # randomly choose 24 (80% of 30) for training
+set.seed(42) # seed for reproducability
 trainIds <- sample(userIds, size = 24)
 
 # set the rest of the users to the testing set
@@ -291,9 +292,9 @@ testY <- testData$activity %>% oneHotClasses()
 input_shape <- dim(trainObs)[-1]
 num_classes <- dim(trainY)[2]
 
-filters <- 18
-kernel_size <- 14
-dense_size <- 32
+filters <- 24
+kernel_size <- 8
+dense_size <- 48
 
 #Initialize model
 model <- keras_model_sequential()
@@ -309,7 +310,7 @@ model %>%
   layer_batch_normalization() %>%
   layer_spatial_dropout_1d(0.3) %>% 
   layer_conv_1d(
-    filters = filters,
+    filters = filters/2,
     kernel_size = kernel_size,
     activation = "relu",
   ) %>%
@@ -331,10 +332,6 @@ model %>%
 
 summary(model)
 ```
-```{r, echo = FALSE}
-# saveRDS(history, 'trainHistory.rds')
-history <- readRDS('trainHistory.rds')
-```
 
 
 ### Training
@@ -347,7 +344,7 @@ model %>% compile(
   metrics = "accuracy"
 )
 
-history <- model %>%
+trainHistory <- model %>%
   fit(
     x = trainObs, y = trainY,
     epochs = 250,
@@ -356,12 +353,49 @@ history <- model %>%
       callback_model_checkpoint("best_model.h5", save_best_only = TRUE)
     )
   )
+
+saveRDS(trainHistory, 'trainHistory.rds') # cache
 ```
+
+```{r, echo = FALSE}
+trainHistory <- read_rds('trainHistory.rds')
+```
+
 
 __Plotting Training Results__
 
-```{r}
-plot(history)
+```{r, echo = FALSE, layout = 'l-page', fig.width = 6, fig.height = 3}
+historyDf <- trainHistory %>% as.data.frame() 
+best_results <- historyDf %>% 
+  group_by(metric) %>% 
+  summarise(
+    low = min(value),
+    lowEpoch = first(epoch[value == low]),
+    high = max(value),
+    highEpoch = first(epoch[value == high])
+  ) %>% 
+  mutate( 
+    best = ifelse(metric == 'loss', low, high),
+    bestEpoch = ifelse(metric == 'loss', lowEpoch, highEpoch),
+    ypos = ifelse(metric == 'loss', 1.5, 0.4)
+  ) 
+
+historyDf %>% 
+  ggplot(aes(x = epoch, y = value, color = data)) +
+  geom_text(
+    data = best_results, 
+    aes(x = 175, y = ypos, label = paste('best:',round(best,3))),
+    color = 'black', fill = 'black', hjust = 1, nudge_x = -2
+  ) +
+  geom_segment(
+    data = best_results, 
+    aes(x = 175, xend = bestEpoch, y = ypos, yend = best), 
+    color = 'black', fill = 'black', alpha = 0.4
+  ) +
+  geom_line(size = 0.2) +
+  geom_point(size = 0.4) +
+  facet_grid(metric~., scales = 'free_y') +
+  theme_minimal()
 ```
 
 
