@@ -3096,7 +3096,7 @@ library(ggridges)  # Visualization</code></pre>
 <aside>
 Throughout this post the path <code>data/</code> is the result of the unzipped data downloaded from the link above.
 </aside>
-<p>When downloaded from the link above, the data contains two different ‘parts.’ One that has been pre-processed using various feature extraction techniques such as fast-fourier transform, and another <code>RawData</code> section that simply supplies the raw X,Y,Z directions of an accelerometer and gyroscope. This is the dataset we will use.</p>
+<p>When downloaded from the link above, the data contains two different ‘parts.’ One that has been pre-processed using various feature extraction techniques such as fast-fourier transform, and another <code>RawData</code> section that simply supplies the raw X,Y,Z directions of an accelerometer and gyroscope. This is the data set we will use.</p>
 <p><strong>The labels</strong></p>
 <p>The data has integer encodings for the activities which, while not important to the model itself, are helpful for use to see. Let’s load them first.</p>
 <div class="layout-chunk" data-layout="l-body">
@@ -3163,7 +3163,7 @@ activityLabels %&gt;% kable()</code></pre>
 </tbody>
 </table>
 </div>
-<p>Next, we load in the labels key for the <code>RawData</code>. This file is a list of all of the observations, or individual activity recordings, contained in the dataset. The key for the columns is taken from the data <code>README.txt</code>.</p>
+<p>Next, we load in the labels key for the <code>RawData</code>. This file is a list of all of the observations, or individual activity recordings, contained in the data set. The key for the columns is taken from the data <code>README.txt</code>.</p>
 <pre><code>
 Column 1: experiment number ID, 
 Column 2: user number ID, 
@@ -3313,7 +3313,7 @@ allObservations %&gt;% dim()</code></pre>
 <pre><code>
 [1] 1214    5</code></pre>
 </div>
-<p>So now that we have all the data loaded along with the <code>experiment</code>, <code>userId</code>, and <code>activity</code> labels, we can explore the dataset.</p>
+<p>So now that we have all the data loaded along with the <code>experiment</code>, <code>userId</code>, and <code>activity</code> labels, we can explore the data set.</p>
 <h2 id="recording-lengths">Recording Lengths</h2>
 <p>Let’s first look at the length of the recordings by activity.</p>
 <div class="layout-chunk" data-layout="l-body">
@@ -3348,7 +3348,7 @@ filteredObservations %&gt;% paged_table()</code></pre>
 </div>
 <p>So after our aggressive pruning of the data we will have a respectable amount of data left upon which our model can learn.</p>
 <h3 id="train-test-split">Train-Test Split</h3>
-<p>Before we go any futher into exploring the data for our model, in an attempt to be as fair as possible with our performance measures, we need to split the data into a train and test set. Since each user performed all activities just once (with the exception of one who only did 10 of the 12 activities) by splitting on <code>userId</code> we will ensure that our model sees new people exclusively when we test it.</p>
+<p>Before we go any further into exploring the data for our model, in an attempt to be as fair as possible with our performance measures, we need to split the data into a train and test set. Since each user performed all activities just once (with the exception of one who only did 10 of the 12 activities) by splitting on <code>userId</code> we will ensure that our model sees new people exclusively when we test it.</p>
 <div class="layout-chunk" data-layout="l-body">
 <pre class="r"><code>
 # get all users
@@ -3369,7 +3369,7 @@ testData &lt;- filteredObservations %&gt;%
   filter(userId %in% testIds)</code></pre>
 </div>
 <h3 id="visualizing-activities">Visualizing Activities</h3>
-<p>Now that we have trimmed our data by removing activities and splitting off a test set, we can actually visualize the data for each class to see if there’s any immediately descernable shape that our model may be able to pick up on.</p>
+<p>Now that we have trimmed our data by removing activities and splitting off a test set, we can actually visualize the data for each class to see if there’s any immediately discernible shape that our model may be able to pick up on.</p>
 <p>First let’s unpack our data from its dataframe of one-row-per-observation to a tidy version of all the observations.</p>
 <div class="layout-chunk" data-layout="l-body">
 <pre class="r"><code>
@@ -3445,7 +3445,7 @@ testY &lt;- testData$activity %&gt;% oneHotClasses()</code></pre>
 </div>
 <h2 id="modeling">Modeling</h2>
 <p><strong>Architecture</strong></p>
-<p>Since we have temporally dense time-series data we will make use of 1D convolutional layers. With temporally-dense data, an RNN has to learn very long dependencies in order to pick up on patterns, CNNs can simply stack a few convolutional layers to build pattern representations of substantial length. Since we are also simply looking for a single classification of activity for each observation, we can just use pooling to ‘summarise’ the CNNs view of the data into a dense layer.</p>
+<p>Since we have temporally dense time-series data we will make use of 1D convolutional layers. With temporally-dense data, an RNN has to learn very long dependencies in order to pick up on patterns, CNNs can simply stack a few convolutional layers to build pattern representations of substantial length. Since we are also simply looking for a single classification of activity for each observation, we can just use pooling to ‘summarize’ the CNNs view of the data into a dense layer.</p>
 <p>In addition to stacking two <a href="https://keras.rstudio.com/reference/layer_conv_1d.html"><code>layer_conv_1d</code>s</a> we will use batch norm and dropout (<a href="https://keras.rstudio.com/reference/layer_spatial_dropout_1d.html">the spatial variant</a> on the convolutional layers and <a href="https://keras.rstudio.com/reference/layer_dropout.html">standard</a> on the dense) to regularize the network.</p>
 <div class="layout-chunk" data-layout="l-body">
 <pre class="r"><code>

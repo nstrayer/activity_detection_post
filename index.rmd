@@ -37,7 +37,7 @@ The data used in this post come from the [Smartphone-Based Recognition of Human 
 Throughout this post the path `data/` is the result of the unzipped data downloaded from the link above.
 </aside>
 
-When downloaded from the link above, the data contains two different 'parts.' One that has been pre-processed using various feature extraction techniques such as fast-fourier transform, and another `RawData` section that simply supplies the raw X,Y,Z directions of an accelerometer and gyroscope. This is the dataset we will use. 
+When downloaded from the link above, the data contains two different 'parts.' One that has been pre-processed using various feature extraction techniques such as fast-fourier transform, and another `RawData` section that simply supplies the raw X,Y,Z directions of an accelerometer and gyroscope. This is the data set we will use. 
 
 __The labels__
 
@@ -49,7 +49,7 @@ activityLabels <- read.table('data/activity_labels.txt', col.names = c('number',
 activityLabels %>% kable()
 ```
 
-Next, we load in the labels key for the `RawData`. This file is a list of all of the observations, or individual activity recordings, contained in the dataset. The key for the columns is taken from the data `README.txt`. 
+Next, we load in the labels key for the `RawData`. This file is a list of all of the observations, or individual activity recordings, contained in the data set. The key for the columns is taken from the data `README.txt`. 
 
 ```
 Column 1: experiment number ID, 
@@ -151,7 +151,7 @@ allObservations <- read_rds('allObservations.rds')
 allObservations %>% dim()
 ```
 
-So now that we have all the data loaded along with the `experiment`, `userId`, and `activity` labels, we can explore the dataset. 
+So now that we have all the data loaded along with the `experiment`, `userId`, and `activity` labels, we can explore the data set. 
 
 ## Recording Lengths
 
@@ -190,7 +190,7 @@ So after our aggressive pruning of the data we will have a respectable amount of
 
 ### Train-Test Split
 
-Before we go any futher into exploring the data for our model, in an attempt to be as fair as possible with our performance measures, we need to split the data into a train and test set. Since each user performed all activities just once (with the exception of one who only did 10 of the 12 activities) by splitting on `userId` we will ensure that our model sees new people exclusively when we test it. 
+Before we go any further into exploring the data for our model, in an attempt to be as fair as possible with our performance measures, we need to split the data into a train and test set. Since each user performed all activities just once (with the exception of one who only did 10 of the 12 activities) by splitting on `userId` we will ensure that our model sees new people exclusively when we test it. 
 
 ```{r}
 # get all users
@@ -214,7 +214,7 @@ testData <- filteredObservations %>%
 
 ### Visualizing Activities
 
-Now that we have trimmed our data by removing activities and splitting off a test set, we can actually visualize the data for each class to see if there's any immediately descernable shape that our model may be able to pick up on. 
+Now that we have trimmed our data by removing activities and splitting off a test set, we can actually visualize the data for each class to see if there's any immediately discernible shape that our model may be able to pick up on. 
 
 First let's unpack our data from its dataframe of one-row-per-observation to a tidy version of all the observations. 
 
@@ -296,7 +296,7 @@ testY <- testData$activity %>% oneHotClasses()
 
 __Architecture__
 
-Since we have temporally dense time-series data we will make use of 1D convolutional layers. With temporally-dense data, an RNN has to learn very long dependencies in order to pick up on patterns, CNNs can simply stack a few convolutional layers to build pattern representations of substantial length. Since we are also simply looking for a single classification of activity for each observation, we can just use pooling to 'summarise' the CNNs view of the data into a dense layer.
+Since we have temporally dense time-series data we will make use of 1D convolutional layers. With temporally-dense data, an RNN has to learn very long dependencies in order to pick up on patterns, CNNs can simply stack a few convolutional layers to build pattern representations of substantial length. Since we are also simply looking for a single classification of activity for each observation, we can just use pooling to 'summarize' the CNNs view of the data into a dense layer.
 
 In addition to stacking two [`layer_conv_1d`s](https://keras.rstudio.com/reference/layer_conv_1d.html) we will use batch norm and dropout ([the spatial variant](https://keras.rstudio.com/reference/layer_spatial_dropout_1d.html) on the convolutional layers and [standard](https://keras.rstudio.com/reference/layer_dropout.html) on the dense) to regularize the network. 
 
