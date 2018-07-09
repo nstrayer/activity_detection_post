@@ -836,10 +836,10 @@ Throughout this post, <code>data/</code> is the directory created by downloading
 <p>The data has integer encodings for the activities which, while not important to the model itself, are helpful for use to see. Let’s load them first.</p>
 <div class="layout-chunk" data-layout="l-body">
 <pre class="r"><code>
-activityLabels &lt;- read.table(&#39;data/activity_labels.txt&#39;, 
-                             col.names = c(&#39;number&#39;, &#39;label&#39;)) 
+activityLabels &lt;- read.table(&quot;data/activity_labels.txt&quot;, 
+                             col.names = c(&quot;number&quot;, &quot;label&quot;)) 
 
-activityLabels %&gt;% kable(align = c(&#39;c&#39;, &#39;l&#39;))</code></pre>
+activityLabels %&gt;% kable(align = c(&quot;c&quot;, &quot;l&quot;))</code></pre>
 <table>
 <thead>
 <tr class="header">
@@ -911,8 +911,8 @@ Column 5: Label end point </code></pre>
 <div class="layout-chunk" data-layout="l-body-outset">
 <pre class="r"><code>
 labels &lt;- read.table(
-  &#39;data/RawData/labels.txt&#39;,
-  col.names = c(&#39;experiment&#39;, &#39;userId&#39;, &#39;activity&#39;, &#39;startPos&#39;, &#39;endPos&#39;)
+  &quot;data/RawData/labels.txt&quot;,
+  col.names = c(&quot;experiment&quot;, &quot;userId&quot;, &quot;activity&quot;, &quot;startPos&quot;, &quot;endPos&quot;)
 )
 
 labels %&gt;% 
@@ -928,7 +928,7 @@ labels %&gt;%
 <p>Next, let’s look at the actual files of the user data provided to us in <code>RawData/</code></p>
 <div class="layout-chunk" data-layout="l-body">
 <pre class="r"><code>
-dataFiles &lt;- list.files(&#39;data/RawData&#39;)
+dataFiles &lt;- list.files(&quot;data/RawData&quot;)
 dataFiles %&gt;% head()</code></pre>
 <pre><code>
 [1] &quot;acc_exp01_user01.txt&quot; &quot;acc_exp02_user01.txt&quot;
@@ -941,13 +941,13 @@ dataFiles %&gt;% head()</code></pre>
 fileInfo &lt;- data_frame(
   filePath = dataFiles
 ) %&gt;%
-  filter(filePath != &#39;labels.txt&#39;) %&gt;% 
+  filter(filePath != &quot;labels.txt&quot;) %&gt;% 
   separate(filePath, sep = &#39;_&#39;, 
-           into = c(&#39;type&#39;, &#39;experiment&#39;, &#39;userId&#39;), 
+           into = c(&quot;type&quot;, &quot;experiment&quot;, &quot;userId&quot;), 
            remove = FALSE) %&gt;% 
   mutate(
-    experiment = str_remove(experiment, &#39;exp&#39;),
-    userId = str_remove_all(userId, &#39;user|\\.txt&#39;)
+    experiment = str_remove(experiment, &quot;exp&quot;),
+    userId = str_remove_all(userId, &quot;user|\\.txt&quot;)
   ) %&gt;% 
   spread(type, filePath)
 
@@ -1009,12 +1009,12 @@ fileInfo %&gt;% head() %&gt;% kable()</code></pre>
 # Read contents of single file to a dataframe with accelerometer and gyro data.
 readInData &lt;- function(experiment, userId){
   genFilePath = function(type) {
-    paste0(&#39;data/RawData/&#39;, type, &#39;_exp&#39;,experiment, &#39;_user&#39;, userId, &#39;.txt&#39;)
+    paste0(&quot;data/RawData/&quot;, type, &quot;_exp&quot;,experiment, &quot;_user&quot;, userId, &quot;.txt&quot;)
   }  
   
   bind_cols(
-    read.table(genFilePath(&#39;acc&#39;), col.names = c(&#39;a_x&#39;, &#39;a_y&#39;, &#39;a_z&#39;)),
-    read.table(genFilePath(&#39;gyro&#39;), col.names = c(&#39;g_x&#39;, &#39;g_y&#39;, &#39;g_z&#39;))
+    read.table(genFilePath(&quot;acc&quot;), col.names = c(&quot;a_x&quot;, &quot;a_y&quot;, &quot;a_z&quot;)),
+    read.table(genFilePath(&quot;gyro&quot;), col.names = c(&quot;g_x&quot;, &quot;g_y&quot;, &quot;g_z&quot;))
   )
 }
 
@@ -1046,11 +1046,11 @@ loadFileData &lt;- function(curExperiment, curUserId) {
 
 # scan through all experiment and userId combos and gather data into a dataframe. 
 allObservations &lt;- map2_df(fileInfo$experiment, fileInfo$userId, loadFileData) %&gt;% 
-  right_join(activityLabels, by = c(&#39;activity&#39; = &#39;number&#39;)) %&gt;% 
+  right_join(activityLabels, by = c(&quot;activity&quot; = &quot;number&quot;)) %&gt;% 
   rename(activityName = label)
 
 # cache work. 
-write_rds(allObservations, &#39;allObservations.rds&#39;)
+write_rds(allObservations, &quot;allObservations.rds&quot;)
 allObservations %&gt;% dim()</code></pre>
 </div>
 <div class="layout-chunk" data-layout="l-body">
@@ -1131,8 +1131,8 @@ unpackedObs &lt;- 1:nrow(trainData) %&gt;%
         time = 1:n() )
   }) %&gt;% 
   gather(reading, value, -time, -activityName, -observationId) %&gt;% 
-  separate(reading, into = c(&#39;type&#39;, &#39;direction&#39;), sep = &#39;_&#39;) %&gt;% 
-  mutate(type = ifelse(type == &#39;a&#39;, &#39;acceleration&#39;, &#39;gyro&#39;))</code></pre>
+  separate(reading, into = c(&quot;type&quot;, &quot;direction&quot;), sep = &quot;_&quot;) %&gt;% 
+  mutate(type = ifelse(type == &quot;a&quot;, &quot;acceleration&quot;, &quot;gyro&quot;))</code></pre>
 </div>
 <p>Now we have an unpacked set of our observations, let’s visualize them!</p>
 <div class="layout-chunk" data-layout="l-screen-inset">
@@ -1141,7 +1141,7 @@ unpackedObs %&gt;%
   ggplot(aes(x = time, y = value, color = direction)) +
   geom_line(alpha = 0.2) +
   geom_smooth(se = FALSE, alpha = 0.7, size = 0.5) +
-  facet_grid(type ~ activityName, scales = &#39;free_y&#39;) +
+  facet_grid(type ~ activityName, scales = &quot;free_y&quot;) +
   theme_minimal() +
   theme( axis.text.x = element_blank() )</code></pre>
 <p><img src="index_files/figure-html5/unnamed-chunk-12-1.png" width="1152" /></p>
@@ -1309,18 +1309,18 @@ trainHistory &lt;- model %&gt;%
 oneHotToLabel &lt;- activityLabels %&gt;% 
   mutate(number = number - 7) %&gt;% 
   filter(number &gt;= 0) %&gt;% 
-  mutate(class = paste0(&#39;V&#39;,number + 1)) %&gt;% 
+  mutate(class = paste0(&quot;V&quot;,number + 1)) %&gt;% 
   select(-number)
 
 # Load our best model checkpoint
-bestModel &lt;- load_model_hdf5(&#39;best_model.h5&#39;)
+bestModel &lt;- load_model_hdf5(&quot;best_model.h5&quot;)
 
 tidyPredictionProbs &lt;- bestModel %&gt;% 
   predict(testObs) %&gt;% 
   as_data_frame() %&gt;% 
   mutate(obs = 1:n()) %&gt;% 
   gather(class, prob, -obs) %&gt;% 
-  right_join(oneHotToLabel, by = &#39;class&#39;)
+  right_join(oneHotToLabel, by = &quot;class&quot;)
 
 predictionPerformance &lt;- tidyPredictionProbs %&gt;% 
   group_by(obs) %&gt;% 
@@ -1348,7 +1348,7 @@ predictionPerformance %&gt;%
   geom_histogram(binwidth = 0.01) +
   geom_rug(alpha = 0.5) +
   facet_grid(correct~.) +
-  ggtitle(&#39;Probabilities associated with prediction by correctness&#39;)</code></pre>
+  ggtitle(&quot;Probabilities associated with prediction by correctness&quot;)</code></pre>
 <p><img src="index_files/figure-html5/unnamed-chunk-22-1.png" width="576" /></p>
 </div>
 <p>Reassuringly we see that the model was, on average, less confident about its classifications for the incorrect results than the correct ones.</p>

@@ -52,10 +52,10 @@ While a more accurate model could be made by utlizing the filtered/cleaned data 
 The data has integer encodings for the activities which, while not important to the model itself, are helpful for use to see. Let's load them first. 
 
 ```{r}
-activityLabels <- read.table('data/activity_labels.txt', 
-                             col.names = c('number', 'label')) 
+activityLabels <- read.table("data/activity_labels.txt", 
+                             col.names = c("number", "label")) 
 
-activityLabels %>% kable(align = c('c', 'l'))
+activityLabels %>% kable(align = c("c", "l"))
 ```
 
 Next, we load in the labels key for the `RawData`. This file is a list of all of the observations, or individual activity recordings, contained in the data set. The key for the columns is taken from the data `README.txt`. 
@@ -74,8 +74,8 @@ Let's take a look at the first 50 rows:
 
 ```{r, layout="l-body-outset"}
 labels <- read.table(
-  'data/RawData/labels.txt',
-  col.names = c('experiment', 'userId', 'activity', 'startPos', 'endPos')
+  "data/RawData/labels.txt",
+  col.names = c("experiment", "userId", "activity", "startPos", "endPos")
 )
 
 labels %>% 
@@ -88,7 +88,7 @@ labels %>%
 Next, let's look at the actual files of the user data provided to us in `RawData/`
 
 ```{r}
-dataFiles <- list.files('data/RawData')
+dataFiles <- list.files("data/RawData")
 dataFiles %>% head()
 ```
 
@@ -98,13 +98,13 @@ There is a three-part file naming scheme. The first part is the type of data the
 fileInfo <- data_frame(
   filePath = dataFiles
 ) %>%
-  filter(filePath != 'labels.txt') %>% 
+  filter(filePath != "labels.txt") %>% 
   separate(filePath, sep = '_', 
-           into = c('type', 'experiment', 'userId'), 
+           into = c("type", "experiment", "userId"), 
            remove = FALSE) %>% 
   mutate(
-    experiment = str_remove(experiment, 'exp'),
-    userId = str_remove_all(userId, 'user|\\.txt')
+    experiment = str_remove(experiment, "exp"),
+    userId = str_remove_all(userId, "user|\\.txt")
   ) %>% 
   spread(type, filePath)
 
@@ -121,12 +121,12 @@ To obtain this we will scan through each of the recording files present in `data
 # Read contents of single file to a dataframe with accelerometer and gyro data.
 readInData <- function(experiment, userId){
   genFilePath = function(type) {
-    paste0('data/RawData/', type, '_exp',experiment, '_user', userId, '.txt')
+    paste0("data/RawData/", type, "_exp",experiment, "_user", userId, ".txt")
   }  
   
   bind_cols(
-    read.table(genFilePath('acc'), col.names = c('a_x', 'a_y', 'a_z')),
-    read.table(genFilePath('gyro'), col.names = c('g_x', 'g_y', 'g_z'))
+    read.table(genFilePath("acc"), col.names = c("a_x", "a_y", "a_z")),
+    read.table(genFilePath("gyro"), col.names = c("g_x", "g_y", "g_z"))
   )
 }
 
@@ -158,16 +158,16 @@ loadFileData <- function(curExperiment, curUserId) {
 
 # scan through all experiment and userId combos and gather data into a dataframe. 
 allObservations <- map2_df(fileInfo$experiment, fileInfo$userId, loadFileData) %>% 
-  right_join(activityLabels, by = c('activity' = 'number')) %>% 
+  right_join(activityLabels, by = c("activity" = "number")) %>% 
   rename(activityName = label)
 
 # cache work. 
-write_rds(allObservations, 'allObservations.rds')
+write_rds(allObservations, "allObservations.rds")
 allObservations %>% dim()
 ```
 
 ```{r, echo = FALSE}
-allObservations <- read_rds('allObservations.rds')
+allObservations <- read_rds("allObservations.rds")
 allObservations %>% dim()
 ```
 
@@ -256,8 +256,8 @@ unpackedObs <- 1:nrow(trainData) %>%
         time = 1:n() )
   }) %>% 
   gather(reading, value, -time, -activityName, -observationId) %>% 
-  separate(reading, into = c('type', 'direction'), sep = '_') %>% 
-  mutate(type = ifelse(type == 'a', 'acceleration', 'gyro'))
+  separate(reading, into = c("type", "direction"), sep = "_") %>% 
+  mutate(type = ifelse(type == "a", "acceleration", "gyro"))
 ```
 
 Now we have an unpacked set of our observations, let's visualize them!
@@ -267,7 +267,7 @@ unpackedObs %>%
   ggplot(aes(x = time, y = value, color = direction)) +
   geom_line(alpha = 0.2) +
   geom_smooth(se = FALSE, alpha = 0.7, size = 0.5) +
-  facet_grid(type ~ activityName, scales = 'free_y') +
+  facet_grid(type ~ activityName, scales = "free_y") +
   theme_minimal() +
   theme( axis.text.x = element_blank() )
 ```
@@ -399,11 +399,11 @@ trainHistory <- model %>%
 ```
 
 ```{r, eval=FALSE, echo=FALSE}
-saveRDS(trainHistory, 'trainHistory.rds') # cache
+saveRDS(trainHistory, "trainHistory.rds") # cache
 ```
 
 ```{r, echo = FALSE}
-trainHistory <- read_rds('trainHistory.rds')
+trainHistory <- read_rds("trainHistory.rds")
 ```
 
 
@@ -418,26 +418,26 @@ best_results <- historyDf %>%
     highEpoch = first(epoch[value == high])
   ) %>% 
   mutate( 
-    best = ifelse(metric == 'loss', low, high),
-    bestEpoch = ifelse(metric == 'loss', lowEpoch, highEpoch),
-    ypos = ifelse(metric == 'loss', 1.5, 0.4)
+    best = ifelse(metric == "loss", low, high),
+    bestEpoch = ifelse(metric == "loss", lowEpoch, highEpoch),
+    ypos = ifelse(metric == "loss", 1.5, 0.4)
   ) 
 
 historyDf %>% 
   ggplot(aes(x = epoch, y = value, color = data)) +
   geom_text(
     data = best_results, 
-    aes(x = 175, y = ypos, label = paste('best:',round(best,3))),
-    color = 'black', fill = 'black', hjust = 1, nudge_x = -2
+    aes(x = 175, y = ypos, label = paste("best:",round(best,3))),
+    color = "black", fill = "black", hjust = 1, nudge_x = -2
   ) +
   geom_segment(
     data = best_results, 
     aes(x = 175, xend = bestEpoch, y = ypos, yend = best), 
-    color = 'black', fill = 'black', alpha = 0.4
+    color = "black", fill = "black", alpha = 0.4
   ) +
   geom_line(size = 0.2) +
   geom_point(size = 0.4) +
-  facet_grid(metric~., scales = 'free_y') +
+  facet_grid(metric~., scales = "free_y") +
   theme_minimal()
 ```
 
@@ -452,18 +452,18 @@ Now that we have a trained model let's investigate the errors that it made on ou
 oneHotToLabel <- activityLabels %>% 
   mutate(number = number - 7) %>% 
   filter(number >= 0) %>% 
-  mutate(class = paste0('V',number + 1)) %>% 
+  mutate(class = paste0("V",number + 1)) %>% 
   select(-number)
 
 # Load our best model checkpoint
-bestModel <- load_model_hdf5('best_model.h5')
+bestModel <- load_model_hdf5("best_model.h5")
 
 tidyPredictionProbs <- bestModel %>% 
   predict(testObs) %>% 
   as_data_frame() %>% 
   mutate(obs = 1:n()) %>% 
   gather(class, prob, -obs) %>% 
-  right_join(oneHotToLabel, by = 'class')
+  right_join(oneHotToLabel, by = "class")
 
 predictionPerformance <- tidyPredictionProbs %>% 
   group_by(obs) %>% 
@@ -487,7 +487,7 @@ predictionPerformance %>%
   geom_histogram(binwidth = 0.01) +
   geom_rug(alpha = 0.5) +
   facet_grid(correct~.) +
-  ggtitle('Probabilities associated with prediction by correctness')
+  ggtitle("Probabilities associated with prediction by correctness")
 ```
 
 Reassuringly we see that the model was, on average, less confident about its classifications for the incorrect results than the correct ones. 
