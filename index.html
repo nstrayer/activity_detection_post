@@ -1344,10 +1344,11 @@ predictionPerformance %&gt;% paged_table()</code></pre>
 <div class="layout-chunk" data-layout="l-body-outset">
 <pre class="r"><code>
 predictionPerformance %&gt;% 
+  mutate(result = ifelse(correct, &#39;Correct&#39;, &#39;Incorrect&#39;)) %&gt;% 
   ggplot(aes(highestProb)) +
   geom_histogram(binwidth = 0.01) +
   geom_rug(alpha = 0.5) +
-  facet_grid(correct~.) +
+  facet_grid(result~.) +
   ggtitle(&quot;Probabilities associated with prediction by correctness&quot;)</code></pre>
 <p><img src="index_files/figure-html5/unnamed-chunk-22-1.png" width="576" /></p>
 </div>

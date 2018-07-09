@@ -483,10 +483,11 @@ First, let's look at how 'confident' the model was by if the prediction was corr
 
 ```{r, layout ="l-body-outset"}
 predictionPerformance %>% 
+  mutate(result = ifelse(correct, 'Correct', 'Incorrect')) %>% 
   ggplot(aes(highestProb)) +
   geom_histogram(binwidth = 0.01) +
   geom_rug(alpha = 0.5) +
-  facet_grid(correct~.) +
+  facet_grid(result~.) +
   ggtitle("Probabilities associated with prediction by correctness")
 ```
 
