@@ -1,52 +1,59 @@
 ---
-title: "Using Keras to detect activity"
+title: "Classsifying physical activity from smartphone data with Keras"
 description: |
-  Using Keras to train a convolutional neural network to classify physical activity from smartphone recorded accelerometer data.
+  Using Keras to train a convolutional neural network to classify physical activity. The dataset was built from the recordings of 30 subjects performing basic activities and postural transitions while carrying a waist-mounted smartphone with embedded inertial sensors.
 author:
   - name: Nick Strayer 
     url: http://nickstrayer.me
     affiliation: Vanderbilt University
     affiliation_url: https://www.vanderbilt.edu/biostatistics-graduate/
 date: "`r Sys.Date()`"
-output: radix::radix_article
+creative_commons: CC BY
+repository_url: https://github.com/nstrayer/activity_detection_post
+output: 
+  radix::radix_article:
+    self_contained: false
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## Introduction
 
-__Libraries__ 
+In this post we'll describe how to use smartphone accelerometer and gyroscope data to predict the physical activities of the individuals carrying the phones. The data used in this post comes from the [Smartphone-Based Recognition of Human Activities and Postural Transitions Data Set](http://archive.ics.uci.edu/ml/datasets/Smartphone-Based+Recognition+of+Human+Activities+and+Postural+Transitions) distributed by the University of California, Irvine. Thirty individuals were tasked with performing various basic activities with an attached smartphone recording movement using an accelerometer and gyroscope.
 
-The following are the libraries used in the analysis. 
+Before we begin, let's load the various libraries that we'll use in the analysis:
 
 ```{r}
 library(keras)     # Neural Networks
-library(tidyverse) # Data cleaning/ Visualization
+library(tidyverse) # Data cleaning / Visualization
 library(knitr)     # Table printing
-library(rmarkdown) # " "
+library(rmarkdown) # Misc. output utitlies 
 library(ggridges)  # Visualization
 ```
 
 
-## The data
+## Activities dataset
 
-The data used in this post come from the [Smartphone-Based Recognition of Human Activities and Postural Transitions Data Set ](http://archive.ics.uci.edu/ml/datasets/Smartphone-Based+Recognition+of+Human+Activities+and+Postural+Transitions) distributed by the University of California, Irvine. Thirty individuals were tasked with performing various basic activities with an attached smartphone recording movement using an accelerometer and gyroscope.
+The data used in this post come from the [Smartphone-Based Recognition of Human Activities and Postural Transitions Data Set](http://archive.ics.uci.edu/ml/datasets/Smartphone-Based+Recognition+of+Human+Activities+and+Postural+Transitions) distributed by the University of California, Irvine. 
 
 <aside>
-Throughout this post the path `data/` is the result of the unzipped data downloaded from the link above.
+Throughout this post, `data/` is the directory created by downloading and unziping this dataset.
 </aside>
+
 
 When downloaded from the link above, the data contains two different 'parts.' One that has been pre-processed using various feature extraction techniques such as fast-fourier transform, and another `RawData` section that simply supplies the raw X,Y,Z directions of an accelerometer and gyroscope. This is the data set we will use. 
 
-__The labels__
+### Activity labels
 
 The data has integer encodings for the activities which, while not important to the model itself, are helpful for use to see. Let's load them first. 
 
 ```{r}
-activityLabels <- read.table('data/activity_labels.txt', col.names = c('number', 'label')) 
+activityLabels <- read.table('data/activity_labels.txt', 
+                             col.names = c('number', 'label')) 
 
-activityLabels %>% kable()
+activityLabels %>% kable(align = c('c', 'l'))
 ```
 
 Next, we load in the labels key for the `RawData`. This file is a list of all of the observations, or individual activity recordings, contained in the data set. The key for the columns is taken from the data `README.txt`. 
@@ -55,11 +62,15 @@ Next, we load in the labels key for the `RawData`. This file is a list of all of
 Column 1: experiment number ID, 
 Column 2: user number ID, 
 Column 3: activity number ID 
-Column 4: Label start point (in number of signal log samples (recorded at 50Hz))
-Column 5: Label end point (in number of signal log samples)
+Column 4: Label start point 
+Column 5: Label end point 
 ```
 
-```{r}
+The start and end points are in number of signal log samples (recorded at 50hz).
+
+Let's take a look at the first 50 rows:
+
+```{r, layout="l-body-outset"}
 labels <- read.table(
   'data/RawData/labels.txt',
   col.names = c('experiment', 'userId', 'activity', 'startPos', 'endPos')
@@ -70,11 +81,12 @@ labels %>%
   paged_table()
 ```
 
+### File names
+
 Next, let's look at the actual files of the user data provided to us in `RawData/`
 
 ```{r}
 dataFiles <- list.files('data/RawData')
-
 dataFiles %>% head()
 ```
 
@@ -85,7 +97,9 @@ fileInfo <- data_frame(
   filePath = dataFiles
 ) %>%
   filter(filePath != 'labels.txt') %>% 
-  separate(filePath, sep = '_', into = c('type', 'experiment', 'userId'), remove = FALSE) %>% 
+  separate(filePath, sep = '_', 
+           into = c('type', 'experiment', 'userId'), 
+           remove = FALSE) %>% 
   mutate(
     experiment = str_remove(experiment, 'exp'),
     userId = str_remove_all(userId, 'user|\\.txt')
@@ -95,7 +109,7 @@ fileInfo <- data_frame(
 fileInfo %>% head() %>% kable()
 ```
 
-__Reading and gathering data__
+### Reading and gathering data
 
 Before we can do anything with the data provided we need to get it into a model-friendly format. This means we want to have a list of observations, their class (or activity label), and the data corresponding to the recording. 
 
@@ -104,8 +118,8 @@ To obtain this we will scan through each of the recording files present in `data
 ```{r, eval = FALSE}
 # Read contents of single file to a dataframe with accelerometer and gyro data.
 readInData <- function(experiment, userId){
-  genFilePath = function(type){
-    return(paste0('data/RawData/', type, '_exp',experiment, '_user', userId, '.txt'))
+  genFilePath = function(type) {
+    paste0('data/RawData/', type, '_exp',experiment, '_user', userId, '.txt')
   }  
   
   bind_cols(
@@ -114,8 +128,11 @@ readInData <- function(experiment, userId){
   )
 }
 
-# Function to read a given file and get the observations contained along with their classes.
-loadFileData <- function(curExperiment, curUserId){
+# Function to read a given file and get the observations contained along
+# with their classes.
+
+loadFileData <- function(curExperiment, curUserId) {
+  
   # load sensor data from file into dataframe
   allData <- readInData(curExperiment, curUserId)
 
@@ -125,7 +142,8 @@ loadFileData <- function(curExperiment, curUserId){
   
   # get observation locations in this file from labels dataframe
   dataLabels <- labels %>% 
-    filter(userId == as.integer(curUserId), experiment == as.integer(curExperiment))
+    filter(userId == as.integer(curUserId), 
+           experiment == as.integer(curExperiment))
   
 
   # extract observations as dataframes and save as a column in dataframe.
@@ -151,13 +169,15 @@ allObservations <- read_rds('allObservations.rds')
 allObservations %>% dim()
 ```
 
-So now that we have all the data loaded along with the `experiment`, `userId`, and `activity` labels, we can explore the data set. 
+## Exploring the data
 
-## Recording Lengths
+Now that we have all the data loaded along with the `experiment`, `userId`, and `activity` labels, we can explore the data set. 
+
+### Length of recordings
 
 Let's first look at the length of the recordings by activity. 
 
-```{r, fig.height=6, fig.width=5}
+```{r, layout="l-body-outset"}
 allObservations %>% 
   mutate(recording_length = map_int(data,nrow)) %>% 
   ggplot(aes(x = recording_length, y = activityName)) +
@@ -168,12 +188,11 @@ The fact there is such a difference in length of recording between the different
 
 An interesting future direction would be attempting to use another architecture such as an RNN that can handle variable length inputs and training it on all the data. However, you would run the risk of the model learning simply that if the observation is long it is most likely one of the four longest classes which would not generalize to a scenario where you were running this model on a real-time-stream of data. 
 
-
-### Filtering Activities
+### Filtering activities
 
 Based on our work from above, let's subset the data to just be of the activities of interest. 
 
-```{r}
+```{r, layout="l-body-outset"}
 desiredActivities <- c(
   "STAND_TO_SIT", "SIT_TO_STAND", "SIT_TO_LIE", 
   "LIE_TO_SIT", "STAND_TO_LIE", "LIE_TO_STAND"  
@@ -188,7 +207,7 @@ filteredObservations %>% paged_table()
 
 So after our aggressive pruning of the data we will have a respectable amount of data left upon which our model can learn. 
 
-### Train-Test Split
+### Training/testing split
 
 Before we go any further into exploring the data for our model, in an attempt to be as fair as possible with our performance measures, we need to split the data into a train and test set. Since each user performed all activities just once (with the exception of one who only did 10 of the 12 activities) by splitting on `userId` we will ensure that our model sees new people exclusively when we test it. 
 
@@ -212,7 +231,7 @@ testData <- filteredObservations %>%
 ```
 
 
-### Visualizing Activities
+### Visualizing activities
 
 Now that we have trimmed our data by removing activities and splitting off a test set, we can actually visualize the data for each class to see if there's any immediately discernible shape that our model may be able to pick up on. 
 
@@ -235,7 +254,7 @@ unpackedObs <- 1:nrow(trainData) %>%
 
 Now we have an unpacked set of our observations, let's visualize them!
 
-```{r,layout="l-screen", fig.width=12, fig.height=4}
+```{r,layout="l-screen-inset", fig.width=12, fig.height=4}
 unpackedObs %>% 
   ggplot(aes(x = time, y = value, color = direction)) +
   geom_line(alpha = 0.2) +
@@ -247,9 +266,11 @@ unpackedObs %>%
 
 So at least in the accelerometer data patterns definitely emerge. One would imagine that the model may have trouble with the differences between `LIE_TO_SIT` and `LIE_TO_STAND` as they have a similar profile on average. The same goes for `SIT_TO_STAND` and `STAND_TO_SIT`. 
 
-## Preparing for Keras Model
+## Preprocessing
 
-__Padding observations__
+Before we can train the neural network, we need to take a couple of steps to preprocess the data.
+
+### Padding observations
 
 First we will decide what length to pad (and truncate) our sequences to by finding what the 98th percentile length is. By not using the very longest observation length this will help us avoid extra-long outlier recordings messing up the padding. 
 
@@ -268,7 +289,6 @@ convertToTensor <- . %>%
   pad_sequences(maxlen = padSize)
 
 trainObs <- trainData$data %>% convertToTensor()
-
 testObs <- testData$data %>% convertToTensor()
   
 dim(trainObs)
@@ -278,9 +298,9 @@ Wonderful, we now have our data in a nice neural-network-friendly format of a 3D
 
 <aside> If we were working with a video instead of sensor data, this would be a 4D Tensor. If we were using FMRI data, this could be a 5D tensor! </aside>
 
-__One-Hot (Dummy) encoding the classes__
+### One-hot encoding
 
-There's one last thing we need to do before we can train our model, and that is turn our observation classes from integers to a one-hot, or dummy encoded, vectors. Luckily, again Keras has supplied us with a very helpful function to do just this. 
+There's one last thing we need to do before we can train our model, and that is turn our observation classes from integers into one-hot, or dummy encoded, vectors. Luckily, again Keras has supplied us with a very helpful function to do just this. 
 
 ```{r}
 oneHotClasses <- . %>% 
@@ -294,13 +314,13 @@ testY <- testData$activity %>% oneHotClasses()
 
 ## Modeling
 
-__Architecture__
+### Architecture
 
 Since we have temporally dense time-series data we will make use of 1D convolutional layers. With temporally-dense data, an RNN has to learn very long dependencies in order to pick up on patterns, CNNs can simply stack a few convolutional layers to build pattern representations of substantial length. Since we are also simply looking for a single classification of activity for each observation, we can just use pooling to 'summarize' the CNNs view of the data into a dense layer.
 
-In addition to stacking two [`layer_conv_1d`s](https://keras.rstudio.com/reference/layer_conv_1d.html) we will use batch norm and dropout ([the spatial variant](https://keras.rstudio.com/reference/layer_spatial_dropout_1d.html) on the convolutional layers and [standard](https://keras.rstudio.com/reference/layer_dropout.html) on the dense) to regularize the network. 
+In addition to stacking two [`layer_conv_1d()`](https://keras.rstudio.com/reference/layer_conv_1d.html) layers, we will use batch norm and dropout ([the spatial variant](https://keras.rstudio.com/reference/layer_spatial_dropout_1d.html) on the convolutional layers and [standard](https://keras.rstudio.com/reference/layer_dropout.html) on the dense) to regularize the network. 
 
-```{r}
+```{r, layout="l-body-outset", width=90}
 input_shape <- dim(trainObs)[-1]
 num_classes <- dim(trainY)[2]
 
@@ -308,7 +328,7 @@ filters <- 24     # number of convolutional filters to learn
 kernel_size <- 8  # how many time-steps each conv layer sees.
 dense_size <- 48  # size of our penultimate dense layer. 
 
-#Initialize model
+# Initialize model
 model <- keras_model_sequential()
 model %>% 
   layer_conv_1d(
@@ -346,7 +366,10 @@ summary(model)
 ```
 
 
-__Training__
+### Training
+
+Now we can train the model using our test and training data. Note that we use `callback_model_checkpoint()` to ensure that we save only the best variation of the model (desirable since at some point in training the model may begin to overfit or otherwise stop improving).
+
 
 ```{r, eval = FALSE}
 # Compile model
@@ -362,10 +385,13 @@ trainHistory <- model %>%
     epochs = 250,
     validation_data = list(testObs, testY),
     callbacks = list(
-      callback_model_checkpoint("best_model.h5", save_best_only = TRUE)
+      callback_model_checkpoint("best_model.h5", 
+                                save_best_only = TRUE)
     )
   )
+```
 
+```{r, eval=FALSE, echo=FALSE}
 saveRDS(trainHistory, 'trainHistory.rds') # cache
 ```
 
@@ -410,11 +436,11 @@ historyDf %>%
 
 The model is learning something! We get a respectable `r scales::percent(best_results$best[2])` accuracy on the validation data, not bad with six possible classes to choose from. Let's look into the validation performance a little deeper to see where the model is messing up. 
 
-## Investigating Performance
+### Evaluation
 
 Now that we have a trained model let's investigate the errors that it made on our testing data. We can load the best model from training based upon validation accuracy and then look at each observation, what the model predicted, how high a probability it assigned, and the true activity label. 
 
-```{r}
+```{r, layout="l-body-outset"}
 # dataframe to get labels onto one-hot encoded prediction columns
 oneHotToLabel <- activityLabels %>% 
   mutate(number = number - 7) %>% 
@@ -448,7 +474,7 @@ predictionPerformance %>% paged_table()
 
 First, let's look at how 'confident' the model was by if the prediction was correct or not. 
 
-```{r}
+```{r, layout ="l-body-outset"}
 predictionPerformance %>% 
   ggplot(aes(highestProb)) +
   geom_histogram(bins = 40) +
@@ -476,7 +502,7 @@ predictionPerformance %>%
 
 We see that, as the preliminary visualization suggested, the model had the most trouble with distinguishing between `LIE_TO_SIT` and `LIE_TO_STAND`. Interestingly it had more trouble when the truth was `LIE_TO_STAND` than the reverse, although the small sample size of our test set makes it difficult to say if this is a significant difference. 
 
-## Future Directions
+## Future directions
 
 The most obvious future direction to take this analysis would be to attempt to make the model more general by working with more of the supplied activity types. Another interesting direction would be to not separate the recordings into distinct 'observations' but instead keep them as one streaming set of data, much like a real world deployment of a model would work, and see how well a model could classify streaming data and detect changes in activity. 
 
