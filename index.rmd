@@ -398,6 +398,67 @@ trainHistory <- model %>%
   )
 ```
 
+
+```{r, eval = FALSE}
+# Compile model
+model %>% compile(
+  loss = "categorical_crossentropy",
+  optimizer = "rmsprop",
+  metrics = "accuracy"
+)
+
+# dataframe to get labels onto one-hot encoded prediction columns
+oneHotToLabel <- activityLabels %>% 
+  mutate(number = number - 7) %>% 
+  filter(number >= 0) %>% 
+  mutate(class = paste0("V",number + 1)) %>% 
+  select(-number)
+
+write_rds(NULL,'epoch_perf.rds')
+getTestPerformance <- function(epoch = 1, logs = NULL){
+  
+  currentEpoch <- model %>% 
+    predict(testObs) %>% 
+    as_data_frame() %>% 
+    mutate(obs = 1:n()) %>% 
+    gather(class, prob, -obs) %>% 
+    right_join(oneHotToLabel, by = "class") %>% 
+    group_by(obs) %>% 
+    summarise(
+      highestProb = max(prob),
+      predicted = label[prob == highestProb]
+    ) %>% 
+    mutate(
+      truth = testData$activityName,
+      correct = truth == predicted
+    ) %>% 
+    group_by(truth, predicted) %>% 
+    summarise(count = n()) %>% 
+    mutate(
+      good = truth == predicted,
+      epoch = epoch
+    )
+  
+  bind_rows(
+    read_rds('epoch_perf.rds'), 
+    currentEpoch
+  ) %>% 
+    write_rds('epoch_perf.rds')
+}
+
+
+trainHistory <- model %>%
+  fit(
+    x = trainObs, y = trainY,
+    epochs = 100,
+    validation_data = list(testObs, testY),
+    callbacks = list(
+      callback_lambda(on_epoch_end = getTestPerformance)
+    )
+  )
+```
+
+
 ```{r, eval=FALSE, echo=FALSE}
 saveRDS(trainHistory, "trainHistory.rds") # cache
 ```
