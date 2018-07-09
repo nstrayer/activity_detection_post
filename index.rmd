@@ -347,7 +347,7 @@ model %>%
     activation = "relu"
   ) %>%
   layer_batch_normalization() %>%
-  layer_spatial_dropout_1d(0.2) %>% 
+  layer_spatial_dropout_1d(0.15) %>% 
   layer_conv_1d(
     filters = filters/2,
     kernel_size = kernel_size,
@@ -509,7 +509,7 @@ predictionPerformance %>%
   theme_minimal()
 ```
 
-We see that, as the preliminary visualization suggested, the model had trouble with distinguishing between `LIE_TO_SIT` and `LIE_TO_STAND`. 
+We see that, as the preliminary visualization suggested, the model had a bit of trouble with distinguishing between `LIE_TO_SIT` and `LIE_TO_STAND` classes, along with the `SIT_TO_LIE` and `STAND_TO_LIE`, which also have similar visual profiles. 
 
 ## Future directions
 
