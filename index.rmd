@@ -45,7 +45,7 @@ Throughout this post, `data/` is the directory created by downloading and unzipi
 
 When downloaded from the link above, the data contains two different 'parts.' One that has been pre-processed using various feature extraction techniques such as fast-fourier transform, and another `RawData` section that simply supplies the raw X,Y,Z directions of an accelerometer and gyroscope. None of the standard noise filtering or feature extraction used in accelerometer data has been applied. This is the data set we will use. 
 
-While a more accurate model could be made by utlizing the filtered/cleaned data provided. The motivation for working with the raw data in this post is to aid the transition of the code/concepts to time series data in less well-characterized domains. Filtering and transformation can vary greatly from task to task; requiring lots of manual effort and domain knowledge. One of the beautiful things about deep learning is the feature extraction is learned from the data, not outside knowledge. 
+The motivation for working with the raw data in this post is to aid the transition of the code/concepts to time series data in less well-characterized domains. While a more accurate model could be made by utlizing the filtered/cleaned data provided, the filtering and transformation can vary greatly from task to task; requiring lots of manual effort and domain knowledge. One of the beautiful things about deep learning is the feature extraction is learned from the data, not outside knowledge. 
 
 ### Activity labels
 
@@ -362,7 +362,7 @@ model %>%
     activation = "relu"
   ) %>% 
   layer_batch_normalization() %>%
-  layer_dropout(0.3) %>% 
+  layer_dropout(0.25) %>% 
   layer_dense(
     num_classes, 
     activation = "softmax",
@@ -389,7 +389,7 @@ model %>% compile(
 trainHistory <- model %>%
   fit(
     x = trainObs, y = trainY,
-    epochs = 250,
+    epochs = 350,
     validation_data = list(testObs, testY),
     callbacks = list(
       callback_model_checkpoint("best_model.h5", 
@@ -509,7 +509,7 @@ predictionPerformance %>%
   theme_minimal()
 ```
 
-We see that, as the preliminary visualization suggested, the model had the most trouble with distinguishing between `LIE_TO_SIT` and `LIE_TO_STAND`. 
+We see that, as the preliminary visualization suggested, the model had trouble with distinguishing between `LIE_TO_SIT` and `LIE_TO_STAND`. 
 
 ## Future directions
 
