@@ -43,7 +43,9 @@ Throughout this post, `data/` is the directory created by downloading and unzipi
 </aside>
 
 
-When downloaded from the link above, the data contains two different 'parts.' One that has been pre-processed using various feature extraction techniques such as fast-fourier transform, and another `RawData` section that simply supplies the raw X,Y,Z directions of an accelerometer and gyroscope. This is the data set we will use. 
+When downloaded from the link above, the data contains two different 'parts.' One that has been pre-processed using various feature extraction techniques such as fast-fourier transform, and another `RawData` section that simply supplies the raw X,Y,Z directions of an accelerometer and gyroscope. None of the standard noise filtering or feature extraction used in accelerometer data has been applied. This is the data set we will use. 
+
+While a more accurate model could be made by utlizing the filtered/cleaned data provided. The motivation for working with the raw data in this post is to aid the transition of the code/concepts to time series data in less well-characterized domains. Filtering and transformation can vary greatly from task to task; requiring lots of manual effort and domain knowledge. One of the beautiful things about deep learning is the feature extraction is learned from the data, not outside knowledge. 
 
 ### Activity labels
 
@@ -185,6 +187,12 @@ allObservations %>%
 ```
 
 The fact there is such a difference in length of recording between the different activity types requires us to be a bit careful with how we proceed. If we train the model on every class at once we are going to have to pad all the observations to the length of the longest, which would leave a large majority of the observations with a huge proportion of their data being just padding-zeros. Because of this, we will fit our model to just the largest 'group' of observations length activities, these include `STAND_TO_SIT`, `STAND_TO_LIE`, `SIT_TO_STAND`, `SIT_TO_LIE`, `LIE_TO_STAND`, and `LIE_TO_SIT`. 
+
+
+<aside>
+It is notable that the activities that we have selected here are all 'transitions.' So in a way we are creating a change-point detection algorithm. 
+</aside>
+
 
 An interesting future direction would be attempting to use another architecture such as an RNN that can handle variable length inputs and training it on all the data. However, you would run the risk of the model learning simply that if the observation is long it is most likely one of the four longest classes which would not generalize to a scenario where you were running this model on a real-time-stream of data. 
 
@@ -336,11 +344,10 @@ model %>%
     kernel_size = kernel_size, 
     input_shape = input_shape,
     padding = "valid", 
-    activation = "relu",
-    name = 'convolution'
+    activation = "relu"
   ) %>%
   layer_batch_normalization() %>%
-  layer_spatial_dropout_1d(0.3) %>% 
+  layer_spatial_dropout_1d(0.2) %>% 
   layer_conv_1d(
     filters = filters/2,
     kernel_size = kernel_size,
@@ -349,17 +356,17 @@ model %>%
   # Apply average pooling:
   layer_global_average_pooling_1d() %>% 
   layer_batch_normalization() %>%
-  layer_dropout(0.5) %>% 
+  layer_dropout(0.2) %>% 
   layer_dense(
     dense_size,
-    activation = 'relu'
+    activation = "relu"
   ) %>% 
   layer_batch_normalization() %>%
-  layer_dropout(0.4) %>% 
+  layer_dropout(0.3) %>% 
   layer_dense(
     num_classes, 
-    activation = 'softmax',
-    name = 'dense_output'
+    activation = "softmax",
+    name = "dense_output"
   ) 
 
 summary(model)
@@ -477,14 +484,15 @@ First, let's look at how 'confident' the model was by if the prediction was corr
 ```{r, layout ="l-body-outset"}
 predictionPerformance %>% 
   ggplot(aes(highestProb)) +
-  geom_histogram(bins = 40) +
+  geom_histogram(binwidth = 0.01) +
+  geom_rug(alpha = 0.5) +
   facet_grid(correct~.) +
   ggtitle('Probabilities associated with prediction by correctness')
 ```
 
 Reassuringly we see that the model was, on average, less confident about its classifications for the incorrect results than the correct ones. 
 
-Let's see what activities the model had the hardest time with using a confusion confusion matrix.
+Let's see what activities the model had the hardest time with using a confusion matrix.
 
 ```{r, layout = 'l-page', fig.width = 8, fig.height = 5}
 predictionPerformance %>% 
@@ -500,7 +508,7 @@ predictionPerformance %>%
   theme_minimal()
 ```
 
-We see that, as the preliminary visualization suggested, the model had the most trouble with distinguishing between `LIE_TO_SIT` and `LIE_TO_STAND`. Interestingly it had more trouble when the truth was `LIE_TO_STAND` than the reverse, although the small sample size of our test set makes it difficult to say if this is a significant difference. 
+We see that, as the preliminary visualization suggested, the model had the most trouble with distinguishing between `LIE_TO_SIT` and `LIE_TO_STAND`. 
 
 ## Future directions
 

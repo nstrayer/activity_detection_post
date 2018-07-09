@@ -15,9 +15,6 @@
   }
   </style>
 
- <!--radix_placeholder_import_source-->
- <!--/radix_placeholder_import_source-->
-
   <!--radix_placeholder_meta_tags-->
   <title>Classsifying physical activity from smartphone data with Keras</title>
   
@@ -229,27 +226,6 @@
     }
     figure .caption {
       font-size: 13px;
-    }
-  }
-  
-  @media(min-width: 1180px) {
-    .base-grid,
-    distill-header,
-    d-title,
-    d-abstract,
-    d-article,
-    d-appendix,
-    distill-appendix,
-    d-byline,
-    d-footnote-list,
-    d-citation-list,
-    distill-footer {
-      grid-template-columns: [screen-start] 1fr [page-start kicker-start] 60px [middle-start] 60px [text-start kicker-end] 60px 60px 60px 60px 60px 60px 60px 60px [text-end gutter-start] 60px [middle-end] 60px [page-end gutter-end] 1fr [screen-end];
-      grid-column-gap: 32px;
-    }
-  
-    .grid {
-      grid-column-gap: 32px;
     }
   }
   
@@ -817,7 +793,7 @@
 <!--radix_placeholder_front_matter-->
 
 <script id="distill-front-matter" type="text/json">
-{"title":"Classsifying physical activity from smartphone data with Keras","description":"Using Keras to train a convolutional neural network to classify physical activity. The dataset was built from the recordings of 30 subjects performing basic activities and postural transitions while carrying a waist-mounted smartphone with embedded inertial sensors.\n","authors":[{"author":"Nick Strayer","authorURL":"http://nickstrayer.me","affiliation":"Vanderbilt University","affiliationURL":"https://www.vanderbilt.edu/biostatistics-graduate/"}],"publishedDate":"2018-07-09T00:00:00.000-04:00","citationText":"Strayer, 2018"}
+{"title":"Classsifying physical activity from smartphone data with Keras","description":"Using Keras to train a convolutional neural network to classify physical activity. The dataset was built from the recordings of 30 subjects performing basic activities and postural transitions while carrying a waist-mounted smartphone with embedded inertial sensors.\n","authors":[{"author":"Nick Strayer","authorURL":"http://nickstrayer.me","affiliation":"Vanderbilt University","affiliationURL":"https://www.vanderbilt.edu/biostatistics-graduate/"}],"publishedDate":"2018-07-09T00:00:00.000-05:00","citationText":"Strayer, 2018"}
 </script>
 
 <!--/radix_placeholder_front_matter-->
@@ -854,7 +830,8 @@ library(ggridges)  # Visualization</code></pre>
 <aside>
 Throughout this post, <code>data/</code> is the directory created by downloading and unziping this dataset.
 </aside>
-<p>When downloaded from the link above, the data contains two different ‘parts.’ One that has been pre-processed using various feature extraction techniques such as fast-fourier transform, and another <code>RawData</code> section that simply supplies the raw X,Y,Z directions of an accelerometer and gyroscope. This is the data set we will use.</p>
+<p>When downloaded from the link above, the data contains two different ‘parts.’ One that has been pre-processed using various feature extraction techniques such as fast-fourier transform, and another <code>RawData</code> section that simply supplies the raw X,Y,Z directions of an accelerometer and gyroscope. None of the standard noise filtering or feature extraction used in accelerometer data has been applied. This is the data set we will use.</p>
+<p>While a more accurate model could be made by utlizing the filtered/cleaned data provided. The motivation for working with the raw data in this post is to aid the transition of the code/concepts to time series data in less well-characterized domains. Filtering and transformation can vary greatly from task to task; requiring lots of manual effort and domain knowledge. One of the beautiful things about deep learning is the feature extraction is learned from the data, not outside knowledge.</p>
 <h3 id="activity-labels">Activity labels</h3>
 <p>The data has integer encodings for the activities which, while not important to the model itself, are helpful for use to see. Let’s load them first.</p>
 <div class="layout-chunk" data-layout="l-body">
@@ -1093,6 +1070,9 @@ allObservations %&gt;%
 <p><img src="index_files/figure-html5/unnamed-chunk-8-1.png" width="576" /></p>
 </div>
 <p>The fact there is such a difference in length of recording between the different activity types requires us to be a bit careful with how we proceed. If we train the model on every class at once we are going to have to pad all the observations to the length of the longest, which would leave a large majority of the observations with a huge proportion of their data being just padding-zeros. Because of this, we will fit our model to just the largest ‘group’ of observations length activities, these include <code>STAND_TO_SIT</code>, <code>STAND_TO_LIE</code>, <code>SIT_TO_STAND</code>, <code>SIT_TO_LIE</code>, <code>LIE_TO_STAND</code>, and <code>LIE_TO_SIT</code>.</p>
+<aside>
+It is notable that the activities that we have selected here are all ‘transitions.’ So in a way we are creating a change-point detection algorithm.
+</aside>
 <p>An interesting future direction would be attempting to use another architecture such as an RNN that can handle variable length inputs and training it on all the data. However, you would run the risk of the model learning simply that if the observation is long it is most likely one of the four longest classes which would not generalize to a scenario where you were running this model on a real-time-stream of data.</p>
 <h3 id="filtering-activities">Filtering activities</h3>
 <p>Based on our work from above, let’s subset the data to just be of the activities of interest.</p>
@@ -1232,11 +1212,10 @@ model %&gt;%
     kernel_size = kernel_size, 
     input_shape = input_shape,
     padding = &quot;valid&quot;, 
-    activation = &quot;relu&quot;,
-    name = &#39;convolution&#39;
+    activation = &quot;relu&quot;
   ) %&gt;%
   layer_batch_normalization() %&gt;%
-  layer_spatial_dropout_1d(0.3) %&gt;% 
+  layer_spatial_dropout_1d(0.2) %&gt;% 
   layer_conv_1d(
     filters = filters/2,
     kernel_size = kernel_size,
@@ -1245,17 +1224,17 @@ model %&gt;%
   # Apply average pooling:
   layer_global_average_pooling_1d() %&gt;% 
   layer_batch_normalization() %&gt;%
-  layer_dropout(0.5) %&gt;% 
+  layer_dropout(0.2) %&gt;% 
   layer_dense(
     dense_size,
-    activation = &#39;relu&#39;
+    activation = &quot;relu&quot;
   ) %&gt;% 
   layer_batch_normalization() %&gt;%
-  layer_dropout(0.4) %&gt;% 
+  layer_dropout(0.3) %&gt;% 
   layer_dense(
     num_classes, 
-    activation = &#39;softmax&#39;,
-    name = &#39;dense_output&#39;
+    activation = &quot;softmax&quot;,
+    name = &quot;dense_output&quot;
   ) 
 
 summary(model)</code></pre>
@@ -1263,13 +1242,13 @@ summary(model)</code></pre>
 ______________________________________________________________________
 Layer (type)                   Output Shape                Param #    
 ======================================================================
-convolution (Conv1D)           (None, 327, 24)             1176       
+conv1d_1 (Conv1D)              (None, 327, 24)             1176       
 ______________________________________________________________________
 batch_normalization_1 (BatchNo (None, 327, 24)             96         
 ______________________________________________________________________
 spatial_dropout1d_1 (SpatialDr (None, 327, 24)             0          
 ______________________________________________________________________
-conv1d_1 (Conv1D)              (None, 320, 12)             2316       
+conv1d_2 (Conv1D)              (None, 320, 12)             2316       
 ______________________________________________________________________
 global_average_pooling1d_1 (Gl (None, 12)                  0          
 ______________________________________________________________________
@@ -1321,7 +1300,7 @@ trainHistory &lt;- model %&gt;%
 <div class="layout-chunk" data-layout="l-page">
 <p><img src="index_files/figure-html5/unnamed-chunk-20-1.png" width="672" /></p>
 </div>
-<p>The model is learning something! We get a respectable 88.9% accuracy on the validation data, not bad with six possible classes to choose from. Let’s look into the validation performance a little deeper to see where the model is messing up.</p>
+<p>The model is learning something! We get a respectable 91.7% accuracy on the validation data, not bad with six possible classes to choose from. Let’s look into the validation performance a little deeper to see where the model is messing up.</p>
 <h3 id="evaluation">Evaluation</h3>
 <p>Now that we have a trained model let’s investigate the errors that it made on our testing data. We can load the best model from training based upon validation accuracy and then look at each observation, what the model predicted, how high a probability it assigned, and the true activity label.</p>
 <div class="layout-chunk" data-layout="l-body-outset">
@@ -1357,7 +1336,7 @@ predictionPerformance &lt;- tidyPredictionProbs %&gt;%
 predictionPerformance %&gt;% paged_table()</code></pre>
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":["obs"],"name":[1],"type":["int"],"align":["right"]},{"label":["highestProb"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["predicted"],"name":[3],"type":["fctr"],"align":["left"]},{"label":["truth"],"name":[4],"type":["fctr"],"align":["left"]},{"label":["correct"],"name":[5],"type":["lgl"],"align":["right"]}],"data":[{"1":"1","2":"0.8158084","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"2","2":"0.8182868","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"3","2":"0.8630167","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"4","2":"0.8051651","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"5","2":"0.9267177","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"6","2":"0.9857319","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"7","2":"0.9748965","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"8","2":"0.9758450","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"9","2":"0.9588906","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"10","2":"0.9283165","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"11","2":"0.7830342","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"12","2":"0.9414880","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"13","2":"0.8948535","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"14","2":"0.8160715","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"15","2":"0.8690241","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"16","2":"0.9145968","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"17","2":"0.8781269","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"18","2":"0.6095371","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"19","2":"0.8310956","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"20","2":"0.8716909","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"21","2":"0.8938181","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"22","2":"0.9040136","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"23","2":"0.8602673","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"24","2":"0.7151400","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"25","2":"0.9525826","3":"SIT_TO_LIE","4":"SIT_TO_LIE","5":"TRUE"},{"1":"26","2":"0.5155970","3":"STAND_TO_LIE","4":"SIT_TO_LIE","5":"FALSE"},{"1":"27","2":"0.6937566","3":"SIT_TO_LIE","4":"SIT_TO_LIE","5":"TRUE"},{"1":"28","2":"0.9641736","3":"SIT_TO_LIE","4":"SIT_TO_LIE","5":"TRUE"},{"1":"29","2":"0.9379827","3":"SIT_TO_LIE","4":"SIT_TO_LIE","5":"TRUE"},{"1":"30","2":"0.9567339","3":"SIT_TO_LIE","4":"SIT_TO_LIE","5":"TRUE"},{"1":"31","2":"0.7461389","3":"SIT_TO_LIE","4":"SIT_TO_LIE","5":"TRUE"},{"1":"32","2":"0.9062923","3":"SIT_TO_LIE","4":"SIT_TO_LIE","5":"TRUE"},{"1":"33","2":"0.8890786","3":"SIT_TO_LIE","4":"SIT_TO_LIE","5":"TRUE"},{"1":"34","2":"0.8649129","3":"SIT_TO_LIE","4":"SIT_TO_LIE","5":"TRUE"},{"1":"35","2":"0.7205527","3":"SIT_TO_LIE","4":"SIT_TO_LIE","5":"TRUE"},{"1":"36","2":"0.9729259","3":"SIT_TO_LIE","4":"SIT_TO_LIE","5":"TRUE"},{"1":"37","2":"0.4607495","3":"LIE_TO_SIT","4":"LIE_TO_SIT","5":"TRUE"},{"1":"38","2":"0.5383973","3":"LIE_TO_SIT","4":"LIE_TO_SIT","5":"TRUE"},{"1":"39","2":"0.2330172","3":"STAND_TO_LIE","4":"LIE_TO_SIT","5":"FALSE"},{"1":"40","2":"0.5229236","3":"LIE_TO_SIT","4":"LIE_TO_SIT","5":"TRUE"},{"1":"41","2":"0.4964864","3":"LIE_TO_SIT","4":"LIE_TO_SIT","5":"TRUE"},{"1":"42","2":"0.5661145","3":"LIE_TO_STAND","4":"LIE_TO_SIT","5":"FALSE"},{"1":"43","2":"0.3872053","3":"LIE_TO_STAND","4":"LIE_TO_SIT","5":"FALSE"},{"1":"44","2":"0.4902232","3":"LIE_TO_STAND","4":"LIE_TO_SIT","5":"FALSE"},{"1":"45","2":"0.6868751","3":"LIE_TO_SIT","4":"LIE_TO_SIT","5":"TRUE"},{"1":"46","2":"0.5617045","3":"LIE_TO_SIT","4":"LIE_TO_SIT","5":"TRUE"},{"1":"47","2":"0.6594461","3":"LIE_TO_SIT","4":"LIE_TO_SIT","5":"TRUE"},{"1":"48","2":"0.7619210","3":"LIE_TO_SIT","4":"LIE_TO_SIT","5":"TRUE"},{"1":"49","2":"0.7644252","3":"STAND_TO_LIE","4":"STAND_TO_LIE","5":"TRUE"},{"1":"50","2":"0.4736537","3":"STAND_TO_LIE","4":"STAND_TO_LIE","5":"TRUE"},{"1":"51","2":"0.5557898","3":"SIT_TO_LIE","4":"STAND_TO_LIE","5":"FALSE"},{"1":"52","2":"0.9738099","3":"STAND_TO_LIE","4":"STAND_TO_LIE","5":"TRUE"},{"1":"53","2":"0.4852117","3":"STAND_TO_LIE","4":"STAND_TO_LIE","5":"TRUE"},{"1":"54","2":"0.9510059","3":"STAND_TO_LIE","4":"STAND_TO_LIE","5":"TRUE"},{"1":"55","2":"0.8382738","3":"SIT_TO_LIE","4":"STAND_TO_LIE","5":"FALSE"},{"1":"56","2":"0.5398667","3":"STAND_TO_LIE","4":"STAND_TO_LIE","5":"TRUE"},{"1":"57","2":"0.9950179","3":"STAND_TO_LIE","4":"STAND_TO_LIE","5":"TRUE"},{"1":"58","2":"0.9507930","3":"STAND_TO_LIE","4":"STAND_TO_LIE","5":"TRUE"},{"1":"59","2":"0.4659261","3":"STAND_TO_LIE","4":"STAND_TO_LIE","5":"TRUE"},{"1":"60","2":"0.9663720","3":"STAND_TO_LIE","4":"STAND_TO_LIE","5":"TRUE"},{"1":"61","2":"0.5093878","3":"LIE_TO_STAND","4":"LIE_TO_STAND","5":"TRUE"},{"1":"62","2":"0.4540908","3":"LIE_TO_STAND","4":"LIE_TO_STAND","5":"TRUE"},{"1":"63","2":"0.3153896","3":"LIE_TO_STAND","4":"LIE_TO_STAND","5":"TRUE"},{"1":"64","2":"0.5016600","3":"LIE_TO_STAND","4":"LIE_TO_STAND","5":"TRUE"},{"1":"65","2":"0.5474530","3":"LIE_TO_STAND","4":"LIE_TO_STAND","5":"TRUE"},{"1":"66","2":"0.5633613","3":"LIE_TO_STAND","4":"LIE_TO_STAND","5":"TRUE"},{"1":"67","2":"0.5941828","3":"LIE_TO_STAND","4":"LIE_TO_STAND","5":"TRUE"},{"1":"68","2":"0.5040856","3":"LIE_TO_STAND","4":"LIE_TO_STAND","5":"TRUE"},{"1":"69","2":"0.5821900","3":"LIE_TO_SIT","4":"LIE_TO_STAND","5":"FALSE"},{"1":"70","2":"0.6153755","3":"LIE_TO_SIT","4":"LIE_TO_STAND","5":"FALSE"},{"1":"71","2":"0.5360223","3":"LIE_TO_SIT","4":"LIE_TO_STAND","5":"FALSE"},{"1":"72","2":"0.5001305","3":"LIE_TO_SIT","4":"LIE_TO_STAND","5":"FALSE"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+{"columns":[{"label":["obs"],"name":[1],"type":["int"],"align":["right"]},{"label":["highestProb"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["predicted"],"name":[3],"type":["fctr"],"align":["left"]},{"label":["truth"],"name":[4],"type":["fctr"],"align":["left"]},{"label":["correct"],"name":[5],"type":["lgl"],"align":["right"]}],"data":[{"1":"1","2":"0.8479248","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"2","2":"0.8380428","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"3","2":"0.7241755","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"4","2":"0.7371731","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"5","2":"0.8624087","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"6","2":"0.9961841","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"7","2":"0.9639755","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"8","2":"0.9888338","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"9","2":"0.9592735","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"10","2":"0.9573006","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"11","2":"0.8603278","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"12","2":"0.9737462","3":"STAND_TO_SIT","4":"STAND_TO_SIT","5":"TRUE"},{"1":"13","2":"0.9734938","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"14","2":"0.9186829","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"15","2":"0.8125573","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"16","2":"0.8719029","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"17","2":"0.7572455","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"18","2":"0.9544911","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"19","2":"0.9685209","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"20","2":"0.9325337","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"21","2":"0.8704767","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"22","2":"0.8973675","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"23","2":"0.9831427","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"24","2":"0.9493544","3":"SIT_TO_STAND","4":"SIT_TO_STAND","5":"TRUE"},{"1":"25","2":"0.9811959","3":"SIT_TO_LIE","4":"SIT_TO_LIE","5":"TRUE"},{"1":"26","2":"0.5007851","3":"STAND_TO_LIE","4":"SIT_TO_LIE","5":"FALSE"},{"1":"27","2":"0.8763665","3":"SIT_TO_LIE","4":"SIT_TO_LIE","5":"TRUE"},{"1":"28","2":"0.9877502","3":"SIT_TO_LIE","4":"SIT_TO_LIE","5":"TRUE"},{"1":"29","2":"0.9652207","3":"SIT_TO_LIE","4":"SIT_TO_LIE","5":"TRUE"},{"1":"30","2":"0.9888814","3":"SIT_TO_LIE","4":"SIT_TO_LIE","5":"TRUE"},{"1":"31","2":"0.6414127","3":"SIT_TO_LIE","4":"SIT_TO_LIE","5":"TRUE"},{"1":"32","2":"0.8912297","3":"SIT_TO_LIE","4":"SIT_TO_LIE","5":"TRUE"},{"1":"33","2":"0.9903262","3":"SIT_TO_LIE","4":"SIT_TO_LIE","5":"TRUE"},{"1":"34","2":"0.9402887","3":"SIT_TO_LIE","4":"SIT_TO_LIE","5":"TRUE"},{"1":"35","2":"0.7825220","3":"SIT_TO_LIE","4":"SIT_TO_LIE","5":"TRUE"},{"1":"36","2":"0.9956578","3":"SIT_TO_LIE","4":"SIT_TO_LIE","5":"TRUE"},{"1":"37","2":"0.5151466","3":"LIE_TO_SIT","4":"LIE_TO_SIT","5":"TRUE"},{"1":"38","2":"0.8906640","3":"LIE_TO_SIT","4":"LIE_TO_SIT","5":"TRUE"},{"1":"39","2":"0.5683484","3":"LIE_TO_SIT","4":"LIE_TO_SIT","5":"TRUE"},{"1":"40","2":"0.5503933","3":"LIE_TO_SIT","4":"LIE_TO_SIT","5":"TRUE"},{"1":"41","2":"0.7043838","3":"LIE_TO_SIT","4":"LIE_TO_SIT","5":"TRUE"},{"1":"42","2":"0.7450607","3":"LIE_TO_STAND","4":"LIE_TO_SIT","5":"FALSE"},{"1":"43","2":"0.7881013","3":"LIE_TO_SIT","4":"LIE_TO_SIT","5":"TRUE"},{"1":"44","2":"0.8803532","3":"LIE_TO_SIT","4":"LIE_TO_SIT","5":"TRUE"},{"1":"45","2":"0.6419114","3":"LIE_TO_SIT","4":"LIE_TO_SIT","5":"TRUE"},{"1":"46","2":"0.8335211","3":"LIE_TO_STAND","4":"LIE_TO_SIT","5":"FALSE"},{"1":"47","2":"0.9408805","3":"LIE_TO_SIT","4":"LIE_TO_SIT","5":"TRUE"},{"1":"48","2":"0.9870588","3":"LIE_TO_SIT","4":"LIE_TO_SIT","5":"TRUE"},{"1":"49","2":"0.9680396","3":"STAND_TO_LIE","4":"STAND_TO_LIE","5":"TRUE"},{"1":"50","2":"0.8080444","3":"STAND_TO_LIE","4":"STAND_TO_LIE","5":"TRUE"},{"1":"51","2":"0.6067932","3":"SIT_TO_LIE","4":"STAND_TO_LIE","5":"FALSE"},{"1":"52","2":"0.9948151","3":"STAND_TO_LIE","4":"STAND_TO_LIE","5":"TRUE"},{"1":"53","2":"0.7280939","3":"STAND_TO_LIE","4":"STAND_TO_LIE","5":"TRUE"},{"1":"54","2":"0.9962329","3":"STAND_TO_LIE","4":"STAND_TO_LIE","5":"TRUE"},{"1":"55","2":"0.8435669","3":"SIT_TO_LIE","4":"STAND_TO_LIE","5":"FALSE"},{"1":"56","2":"0.8181948","3":"STAND_TO_LIE","4":"STAND_TO_LIE","5":"TRUE"},{"1":"57","2":"0.9981194","3":"STAND_TO_LIE","4":"STAND_TO_LIE","5":"TRUE"},{"1":"58","2":"0.9885610","3":"STAND_TO_LIE","4":"STAND_TO_LIE","5":"TRUE"},{"1":"59","2":"0.9025815","3":"STAND_TO_LIE","4":"STAND_TO_LIE","5":"TRUE"},{"1":"60","2":"0.9965725","3":"STAND_TO_LIE","4":"STAND_TO_LIE","5":"TRUE"},{"1":"61","2":"0.9389080","3":"LIE_TO_STAND","4":"LIE_TO_STAND","5":"TRUE"},{"1":"62","2":"0.7373982","3":"LIE_TO_STAND","4":"LIE_TO_STAND","5":"TRUE"},{"1":"63","2":"0.8060146","3":"LIE_TO_STAND","4":"LIE_TO_STAND","5":"TRUE"},{"1":"64","2":"0.7720317","3":"LIE_TO_STAND","4":"LIE_TO_STAND","5":"TRUE"},{"1":"65","2":"0.8691528","3":"LIE_TO_STAND","4":"LIE_TO_STAND","5":"TRUE"},{"1":"66","2":"0.8373861","3":"LIE_TO_STAND","4":"LIE_TO_STAND","5":"TRUE"},{"1":"67","2":"0.9342412","3":"LIE_TO_STAND","4":"LIE_TO_STAND","5":"TRUE"},{"1":"68","2":"0.8896766","3":"LIE_TO_STAND","4":"LIE_TO_STAND","5":"TRUE"},{"1":"69","2":"0.9068887","3":"LIE_TO_SIT","4":"LIE_TO_STAND","5":"FALSE"},{"1":"70","2":"0.7187330","3":"LIE_TO_SIT","4":"LIE_TO_STAND","5":"FALSE"},{"1":"71","2":"0.8500410","3":"LIE_TO_SIT","4":"LIE_TO_STAND","5":"FALSE"},{"1":"72","2":"0.8723679","3":"LIE_TO_STAND","4":"LIE_TO_STAND","5":"TRUE"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
   </script>
 </div>
 </div>
@@ -1366,13 +1345,14 @@ predictionPerformance %&gt;% paged_table()</code></pre>
 <pre class="r"><code>
 predictionPerformance %&gt;% 
   ggplot(aes(highestProb)) +
-  geom_histogram(bins = 40) +
+  geom_histogram(binwidth = 0.01) +
+  geom_rug(alpha = 0.5) +
   facet_grid(correct~.) +
   ggtitle(&#39;Probabilities associated with prediction by correctness&#39;)</code></pre>
 <p><img src="index_files/figure-html5/unnamed-chunk-22-1.png" width="576" /></p>
 </div>
 <p>Reassuringly we see that the model was, on average, less confident about its classifications for the incorrect results than the correct ones.</p>
-<p>Let’s see what activities the model had the hardest time with using a confusion confusion matrix.</p>
+<p>Let’s see what activities the model had the hardest time with using a confusion matrix.</p>
 <div class="layout-chunk" data-layout="l-page">
 <pre class="r"><code>
 predictionPerformance %&gt;% 
@@ -1388,7 +1368,7 @@ predictionPerformance %&gt;%
   theme_minimal()</code></pre>
 <p><img src="index_files/figure-html5/unnamed-chunk-23-1.png" width="768" /></p>
 </div>
-<p>We see that, as the preliminary visualization suggested, the model had the most trouble with distinguishing between <code>LIE_TO_SIT</code> and <code>LIE_TO_STAND</code>. Interestingly it had more trouble when the truth was <code>LIE_TO_STAND</code> than the reverse, although the small sample size of our test set makes it difficult to say if this is a significant difference.</p>
+<p>We see that, as the preliminary visualization suggested, the model had the most trouble with distinguishing between <code>LIE_TO_SIT</code> and <code>LIE_TO_STAND</code>.</p>
 <h2 id="future-directions">Future directions</h2>
 <p>The most obvious future direction to take this analysis would be to attempt to make the model more general by working with more of the supplied activity types. Another interesting direction would be to not separate the recordings into distinct ‘observations’ but instead keep them as one streaming set of data, much like a real world deployment of a model would work, and see how well a model could classify streaming data and detect changes in activity.</p>
 <!--radix_placeholder_article_footer-->
