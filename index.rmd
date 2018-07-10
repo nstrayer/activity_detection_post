@@ -1,5 +1,5 @@
 ---
-title: "Classsifying physical activity from smartphone data with Keras"
+title: "Classifying physical activity from smartphone data with Keras"
 description: |
   Using Keras to train a convolutional neural network to classify physical activity. The dataset was built from the recordings of 30 subjects performing basic activities and postural transitions while carrying a waist-mounted smartphone with embedded inertial sensors.
 author:
@@ -29,7 +29,7 @@ Before we begin, let's load the various libraries that we'll use in the analysis
 library(keras)     # Neural Networks
 library(tidyverse) # Data cleaning / Visualization
 library(knitr)     # Table printing
-library(rmarkdown) # Misc. output utitlies 
+library(rmarkdown) # Misc. output utilities 
 library(ggridges)  # Visualization
 ```
 
@@ -39,13 +39,13 @@ library(ggridges)  # Visualization
 The data used in this post come from the [Smartphone-Based Recognition of Human Activities and Postural Transitions Data Set](http://archive.ics.uci.edu/ml/datasets/Smartphone-Based+Recognition+of+Human+Activities+and+Postural+Transitions) distributed by the University of California, Irvine. 
 
 <aside>
-Throughout this post, `data/` is the directory created by downloading and unziping this dataset.
+Throughout this post, `data/` is the directory created by downloading and unzipping this dataset.
 </aside>
 
 
 When downloaded from the link above, the data contains two different 'parts.' One that has been pre-processed using various feature extraction techniques such as fast-fourier transform, and another `RawData` section that simply supplies the raw X,Y,Z directions of an accelerometer and gyroscope. None of the standard noise filtering or feature extraction used in accelerometer data has been applied. This is the data set we will use. 
 
-The motivation for working with the raw data in this post is to aid the transition of the code/concepts to time series data in less well-characterized domains. While a more accurate model could be made by utlizing the filtered/cleaned data provided, the filtering and transformation can vary greatly from task to task; requiring lots of manual effort and domain knowledge. One of the beautiful things about deep learning is the feature extraction is learned from the data, not outside knowledge. 
+The motivation for working with the raw data in this post is to aid the transition of the code/concepts to time series data in less well-characterized domains. While a more accurate model could be made by utilizing the filtered/cleaned data provided, the filtering and transformation can vary greatly from task to task; requiring lots of manual effort and domain knowledge. One of the beautiful things about deep learning is the feature extraction is learned from the data, not outside knowledge. 
 
 ### Activity labels
 
@@ -183,7 +183,7 @@ Let's first look at the length of the recordings by activity.
 allObservations %>% 
   mutate(recording_length = map_int(data,nrow)) %>% 
   ggplot(aes(x = recording_length, y = activityName)) +
-  geom_density_ridges()
+  geom_density_ridges(alpha = 0.8)
 ```
 
 The fact there is such a difference in length of recording between the different activity types requires us to be a bit careful with how we proceed. If we train the model on every class at once we are going to have to pad all the observations to the length of the longest, which would leave a large majority of the observations with a huge proportion of their data being just padding-zeros. Because of this, we will fit our model to just the largest 'group' of observations length activities, these include `STAND_TO_SIT`, `STAND_TO_LIE`, `SIT_TO_STAND`, `SIT_TO_LIE`, `LIE_TO_STAND`, and `LIE_TO_SIT`. 
@@ -224,7 +224,7 @@ Before we go any further into exploring the data for our model, in an attempt to
 userIds <- allObservations$userId %>% unique()
 
 # randomly choose 24 (80% of 30 individuals) for training
-set.seed(42) # seed for reproducability
+set.seed(42) # seed for reproducibility
 trainIds <- sample(userIds, size = 24)
 
 # set the rest of the users to the testing set
