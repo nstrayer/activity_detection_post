@@ -446,11 +446,10 @@ getTestPerformance <- function(epoch = 1, logs = NULL){
     write_rds('epoch_perf.rds')
 }
 
-
 trainHistory <- model %>%
   fit(
     x = trainObs, y = trainY,
-    epochs = 100,
+    epochs = 250,
     validation_data = list(testObs, testY),
     callbacks = list(
       callback_lambda(on_epoch_end = getTestPerformance)
