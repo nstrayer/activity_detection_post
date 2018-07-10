@@ -10,6 +10,7 @@ author:
 date: "`r Sys.Date()`"
 creative_commons: CC BY
 repository_url: https://github.com/nstrayer/activity_detection_post
+bibliography: bibliography.bib
 output: 
   radix::radix_article:
     self_contained: false
@@ -36,7 +37,7 @@ library(ggridges)  # Visualization
 
 ## Activities dataset
 
-The data used in this post come from the [Smartphone-Based Recognition of Human Activities and Postural Transitions Data Set](http://archive.ics.uci.edu/ml/datasets/Smartphone-Based+Recognition+of+Human+Activities+and+Postural+Transitions) distributed by the University of California, Irvine. 
+The data used in this post come from the [Smartphone-Based Recognition of Human Activities and Postural Transitions Data Set](http://archive.ics.uci.edu/ml/datasets/Smartphone-Based+Recognition+of+Human+Activities+and+Postural+Transitions)[@dataSource] distributed by the University of California, Irvine. 
 
 <aside>
 Throughout this post, `data/` is the directory created by downloading and unzipping this dataset.
@@ -326,7 +327,9 @@ testY <- testData$activity %>% oneHotClasses()
 
 Since we have temporally dense time-series data we will make use of 1D convolutional layers. With temporally-dense data, an RNN has to learn very long dependencies in order to pick up on patterns, CNNs can simply stack a few convolutional layers to build pattern representations of substantial length. Since we are also simply looking for a single classification of activity for each observation, we can just use pooling to 'summarize' the CNNs view of the data into a dense layer.
 
-In addition to stacking two [`layer_conv_1d()`](https://keras.rstudio.com/reference/layer_conv_1d.html) layers, we will use batch norm and dropout ([the spatial variant](https://keras.rstudio.com/reference/layer_spatial_dropout_1d.html) on the convolutional layers and [standard](https://keras.rstudio.com/reference/layer_dropout.html) on the dense) to regularize the network. 
+<aside>For more information on the differences between the two architectures for sequence data see [@gravesRNN] and [@deeplearnBook].</aside>
+
+In addition to stacking two [`layer_conv_1d()`](https://keras.rstudio.com/reference/layer_conv_1d.html) layers, we will use batch norm and dropout ([the spatial variant](https://keras.rstudio.com/reference/layer_spatial_dropout_1d.html)[@spatialConvolutions] on the convolutional layers and [standard](https://keras.rstudio.com/reference/layer_dropout.html) on the dense) to regularize the network. 
 
 ```{r, layout="l-body-outset", width=90}
 input_shape <- dim(trainObs)[-1]
@@ -491,7 +494,9 @@ predictionPerformance %>%
   ggtitle("Probabilities associated with prediction by correctness")
 ```
 
-Reassuringly we see that the model was, on average, less confident about its classifications for the incorrect results than the correct ones. 
+Reassuringly it seems the model was, on average, less confident about its classifications for the incorrect results than the correct ones. (Although, the sample size is too small to say anything definitively.)
+
+<aside> If you desire a model that can truly tell you how 'confident' it is in a prediction (rather than just a probability), look into bayesian neural networks[@bayesianNetworks] and the more recent use of dropout-as-bayes[@dropoutAsBayes].</aside>
 
 Let's see what activities the model had the hardest time with using a confusion matrix.
 
